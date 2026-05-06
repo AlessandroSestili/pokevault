@@ -381,7 +381,7 @@ export function AddCardModal({
                 autoFocus
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Cerca nome carta..."
+                placeholder="Nome, codice (sv6-012) o numero (4/102)..."
                 style={{ ...inputStyle, paddingLeft: '32px', paddingRight: '32px' }}
               />
             </div>

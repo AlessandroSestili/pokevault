@@ -107,7 +107,7 @@ function SearchInput({
         autoFocus
         value={query}
         onChange={e => setQuery(e.target.value)}
-        placeholder="Cerca carta per nome..."
+        placeholder="Nome, codice (sv6-012) o numero (4/102)..."
         className="w-full pl-8 pr-8 py-2.5 rounded-xl font-mono text-[13px] outline-none"
         style={{ background: 'var(--bg-1)', border: '1px solid var(--border)', color: 'var(--text-0)' }}
       />
