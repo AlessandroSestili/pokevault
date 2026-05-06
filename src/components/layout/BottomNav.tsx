@@ -50,17 +50,13 @@ export function BottomNav({ onAdd }: { onAdd?: () => void }) {
           )
         })}
 
-        <button
-          onClick={onAdd}
-          className="flex flex-col items-center gap-1 py-1 px-4"
-        >
-          <div
-            className="w-9 h-9 rounded-full flex items-center justify-center"
-            style={{ background: 'var(--accent)' }}
-          >
-            <Plus size={18} strokeWidth={2.5} className="text-black" />
-          </div>
-        </button>
+        {onAdd && (
+          <button onClick={onAdd} className="flex flex-col items-center gap-1 py-1 px-4">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: 'var(--accent)' }}>
+              <Plus size={18} strokeWidth={2.5} className="text-black" />
+            </div>
+          </button>
+        )}
       </div>
     </nav>
   )

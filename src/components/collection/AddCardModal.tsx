@@ -2,17 +2,17 @@
 
 import { useState, useEffect, useRef, useTransition } from 'react'
 import Image from 'next/image'
-import { Search, Loader2, ChevronLeft } from 'lucide-react'
+import { Search, Loader2, ChevronLeft, Upload } from 'lucide-react'
 import type { PokemonTcgCard, Language, Source } from '@/types'
 import { searchCards } from '@/lib/api/pokemontcg'
 import { extractMarketPrice } from '@/lib/api/prices'
-import { addCardAction } from '@/lib/actions'
+import { addCardAction, importCardsAction } from '@/lib/actions'
 import { Sheet } from '@/components/ui/Sheet'
 
 const LANGUAGES: Language[] = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
 const SOURCES: Source[] = ['Cardmarket', 'eBay', 'TCGPlayer', 'Negozio locale', 'Scambio', 'Asta', 'Altro']
 
-type Step = 'search' | 'form'
+type Step = 'search' | 'form' | 'csv'
 
 function useDebounce<T>(value: T, ms: number): T {
   const [debounced, setDebounced] = useState(value)
@@ -51,9 +51,7 @@ function CardSearchResult({ card, onSelect }: { card: PokemonTcgCard; onSelect: 
   )
 }
 
-function InputField({
-  label, children,
-}: { label: string; children: React.ReactNode }) {
+function InputField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
       <label className="font-mono text-[10px] tracking-[1px] uppercase block mb-1.5" style={{ color: 'var(--text-2)' }}>
@@ -76,12 +74,25 @@ const inputStyle: React.CSSProperties = {
   outline: 'none',
 }
 
+// CSV expected columns: name,set_name,card_number,condition,cost,language,source,acquired_date,notes
+function parseCsv(text: string): Array<Record<string, string>> {
+  const lines = text.trim().split('\n').filter(Boolean)
+  if (lines.length < 2) return []
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase())
+  return lines.slice(1).map(line => {
+    const values = line.split(',').map(v => v.trim())
+    return Object.fromEntries(headers.map((h, i) => [h, values[i] ?? '']))
+  })
+}
+
 export function AddCardModal({
   open,
   onClose,
+  preselected = null,
 }: {
   open: boolean
   onClose: () => void
+  preselected?: PokemonTcgCard | null
 }) {
   const [step, setStep] = useState<Step>('search')
   const [query, setQuery] = useState('')
@@ -99,7 +110,21 @@ export function AddCardModal({
   const [acquiredDate, setAcquiredDate] = useState(new Date().toISOString().slice(0, 10))
   const [notes, setNotes] = useState('')
 
+  // CSV state
+  const [csvRows, setCsvRows] = useState<Array<Record<string, string>>>([])
+  const [csvError, setCsvError] = useState<string | null>(null)
+  const [csvImported, setCsvImported] = useState<number | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
   const debouncedQuery = useDebounce(query, 400)
+
+  // If a card is preselected (from /search page), jump straight to form
+  useEffect(() => {
+    if (open && preselected) {
+      selectCard(preselected)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, preselected])
 
   useEffect(() => {
     if (!debouncedQuery.trim() || debouncedQuery.length < 2) { setResults([]); return }
@@ -121,6 +146,9 @@ export function AddCardModal({
     setSource('Cardmarket')
     setNotes('')
     setError(null)
+    setCsvRows([])
+    setCsvError(null)
+    setCsvImported(null)
   }
 
   function handleClose() {
@@ -176,9 +204,171 @@ export function AddCardModal({
     })
   }
 
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setCsvError(null)
+    setCsvImported(null)
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const text = ev.target?.result as string
+      const rows = parseCsv(text)
+      if (rows.length === 0) {
+        setCsvError('File vuoto o formato non valido')
+        return
+      }
+      setCsvRows(rows)
+    }
+    reader.readAsText(file)
+  }
+
+  function handleCsvImport() {
+    if (csvRows.length === 0) return
+    setCsvError(null)
+    startTransition(async () => {
+      const count = await importCardsAction(csvRows)
+      if (count > 0) {
+        setCsvImported(count)
+        setCsvRows([])
+        if (fileRef.current) fileRef.current.value = ''
+      } else {
+        setCsvError('Nessuna carta importata. Controlla il formato del file.')
+      }
+    })
+  }
+
+  const csvStep = step === 'csv'
+  const formStep = step === 'form'
+
   return (
-    <Sheet open={open} onClose={handleClose} title={step === 'search' ? 'Aggiungi carta' : selected?.name ?? 'Dettagli'}>
-      {step === 'search' ? (
+    <Sheet
+      open={open}
+      onClose={handleClose}
+      title={formStep ? (selected?.name ?? 'Dettagli') : csvStep ? 'Importa CSV' : 'Aggiungi carta'}
+    >
+      {formStep ? (
+        <form onSubmit={handleSubmit} className="px-4 py-4 space-y-4">
+          <button
+            type="button"
+            onClick={() => setStep('search')}
+            className="flex items-center gap-1 font-mono text-[11px] mb-2"
+            style={{ color: 'var(--text-2)' }}
+          >
+            <ChevronLeft size={13} /> Indietro
+          </button>
+
+          {selected && (
+            <div className="flex items-center gap-3 p-3 rounded-2xl" style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
+              {selected.images?.small && (
+                <div className="relative w-10 h-14 flex-shrink-0">
+                  <Image src={selected.images.small} alt={selected.name} fill sizes="40px" className="object-contain" unoptimized />
+                </div>
+              )}
+              <div>
+                <p className="font-display font-medium text-[14px]" style={{ color: 'var(--text-0)' }}>{selected.name}</p>
+                <p className="font-mono text-[11px] mt-0.5" style={{ color: 'var(--text-2)' }}>
+                  {selected.set.name} · {selected.number}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <InputField label="Condizione (PSA)">
+              <input type="number" min="1" max="10" step="0.5" value={condition} onChange={e => setCondition(e.target.value)} style={inputStyle} required />
+            </InputField>
+            <InputField label="Costo (€)">
+              <input type="number" min="0" step="0.01" value={cost} onChange={e => setCost(e.target.value)} placeholder="0.00" style={inputStyle} required />
+            </InputField>
+          </div>
+
+          <InputField label="Lingua">
+            <select value={language} onChange={e => setLanguage(e.target.value as Language)} style={inputStyle}>
+              {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </InputField>
+
+          <InputField label="Fonte">
+            <select value={source} onChange={e => setSource(e.target.value as Source)} style={inputStyle}>
+              {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </InputField>
+
+          <InputField label="Data acquisto">
+            <input type="date" value={acquiredDate} onChange={e => setAcquiredDate(e.target.value)} style={inputStyle} required />
+          </InputField>
+
+          <InputField label="Note (opzionale)">
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Signed, mint pack fresh..." style={{ ...inputStyle, resize: 'none' }} />
+          </InputField>
+
+          {error && <p className="font-mono text-[12px] text-center" style={{ color: 'var(--neg)' }}>{error}</p>}
+
+          <button
+            type="submit"
+            disabled={isPending}
+            className="w-full py-3.5 rounded-2xl font-display font-semibold text-[14px] text-black transition-opacity disabled:opacity-50"
+            style={{ background: 'var(--accent)' }}
+          >
+            {isPending ? 'Salvo...' : 'Aggiungi alla collezione'}
+          </button>
+        </form>
+      ) : csvStep ? (
+        <div className="px-4 py-4 space-y-4">
+          <button
+            type="button"
+            onClick={() => setStep('search')}
+            className="flex items-center gap-1 font-mono text-[11px] mb-2"
+            style={{ color: 'var(--text-2)' }}
+          >
+            <ChevronLeft size={13} /> Indietro
+          </button>
+
+          {/* Format hint */}
+          <div className="rounded-xl p-3 space-y-1" style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
+            <p className="font-mono text-[10px] tracking-[1px] uppercase mb-2" style={{ color: 'var(--text-2)' }}>Formato CSV atteso</p>
+            <p className="font-mono text-[10px] break-all" style={{ color: 'var(--text-1)' }}>
+              name, set_name, card_number, condition, cost, language, source, acquired_date, notes
+            </p>
+            <p className="font-mono text-[10px] break-all" style={{ color: 'var(--text-2)' }}>
+              Charizard, Base Set, 4/102, 8, 150, EN, eBay, 2024-01-15,
+            </p>
+          </div>
+
+          <InputField label="File CSV">
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleFileChange}
+              style={{ ...inputStyle, padding: '8px 12px', cursor: 'pointer' }}
+            />
+          </InputField>
+
+          {csvRows.length > 0 && (
+            <p className="font-mono text-[12px]" style={{ color: 'var(--text-1)' }}>
+              {csvRows.length} carte pronte all&apos;importazione
+            </p>
+          )}
+
+          {csvError && <p className="font-mono text-[12px]" style={{ color: 'var(--neg)' }}>{csvError}</p>}
+
+          {csvImported != null && (
+            <p className="font-mono text-[12px]" style={{ color: 'var(--pos)' }}>
+              ✓ {csvImported} carte importate con successo
+            </p>
+          )}
+
+          <button
+            onClick={handleCsvImport}
+            disabled={csvRows.length === 0 || isPending}
+            className="w-full py-3.5 rounded-2xl font-display font-semibold text-[14px] text-black transition-opacity disabled:opacity-50"
+            style={{ background: 'var(--accent)' }}
+          >
+            {isPending ? 'Importo...' : `Importa ${csvRows.length > 0 ? csvRows.length + ' carte' : ''}`}
+          </button>
+        </div>
+      ) : (
         <div>
           {/* Search input */}
           <div className="px-4 pt-3 pb-2">
@@ -209,8 +399,8 @@ export function AddCardModal({
             ))}
           </div>
 
-          {/* Manual add hint */}
-          <div className="px-4 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
+          {/* Bottom actions */}
+          <div className="px-4 py-4 border-t space-y-2" style={{ borderColor: 'var(--border)' }}>
             <button
               onClick={() => setStep('form')}
               className="w-full py-2.5 rounded-xl font-mono text-[12px] transition-colors"
@@ -218,121 +408,16 @@ export function AddCardModal({
             >
               Aggiungi manualmente
             </button>
+            <button
+              onClick={() => setStep('csv')}
+              className="w-full py-2.5 rounded-xl font-mono text-[12px] flex items-center justify-center gap-2 transition-colors"
+              style={{ background: 'var(--bg-2)', color: 'var(--text-1)', border: '1px solid var(--border)' }}
+            >
+              <Upload size={12} />
+              Importa da CSV
+            </button>
           </div>
         </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="px-4 py-4 space-y-4">
-          {/* Back */}
-          <button
-            type="button"
-            onClick={() => setStep('search')}
-            className="flex items-center gap-1 font-mono text-[11px] mb-2"
-            style={{ color: 'var(--text-2)' }}
-          >
-            <ChevronLeft size={13} /> Indietro
-          </button>
-
-          {/* Selected card preview */}
-          {selected && (
-            <div
-              className="flex items-center gap-3 p-3 rounded-2xl"
-              style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}
-            >
-              {selected.images?.small && (
-                <div className="relative w-10 h-14 flex-shrink-0">
-                  <Image src={selected.images.small} alt={selected.name} fill sizes="40px" className="object-contain" unoptimized />
-                </div>
-              )}
-              <div>
-                <p className="font-display font-medium text-[14px]" style={{ color: 'var(--text-0)' }}>{selected.name}</p>
-                <p className="font-mono text-[11px] mt-0.5" style={{ color: 'var(--text-2)' }}>
-                  {selected.set.name} · {selected.number}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Form fields */}
-          <div className="grid grid-cols-2 gap-3">
-            <InputField label="Condizione (PSA)">
-              <input
-                type="number"
-                min="1"
-                max="10"
-                step="0.5"
-                value={condition}
-                onChange={e => setCondition(e.target.value)}
-                style={inputStyle}
-                required
-              />
-            </InputField>
-            <InputField label="Costo (€)">
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={cost}
-                onChange={e => setCost(e.target.value)}
-                placeholder="0.00"
-                style={inputStyle}
-                required
-              />
-            </InputField>
-          </div>
-
-          <InputField label="Lingua">
-            <select
-              value={language}
-              onChange={e => setLanguage(e.target.value as Language)}
-              style={inputStyle}
-            >
-              {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
-            </select>
-          </InputField>
-
-          <InputField label="Fonte">
-            <select
-              value={source}
-              onChange={e => setSource(e.target.value as Source)}
-              style={inputStyle}
-            >
-              {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </InputField>
-
-          <InputField label="Data acquisto">
-            <input
-              type="date"
-              value={acquiredDate}
-              onChange={e => setAcquiredDate(e.target.value)}
-              style={inputStyle}
-              required
-            />
-          </InputField>
-
-          <InputField label="Note (opzionale)">
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Signed, mint pack fresh..."
-              style={{ ...inputStyle, resize: 'none' }}
-            />
-          </InputField>
-
-          {error && (
-            <p className="font-mono text-[12px] text-center" style={{ color: 'var(--neg)' }}>{error}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={isPending}
-            className="w-full py-3.5 rounded-2xl font-display font-semibold text-[14px] text-black transition-opacity disabled:opacity-50"
-            style={{ background: 'var(--accent)' }}
-          >
-            {isPending ? 'Salvo...' : 'Aggiungi alla collezione'}
-          </button>
-        </form>
       )}
     </Sheet>
   )

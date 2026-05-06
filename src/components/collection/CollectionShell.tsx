@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Search, Star } from 'lucide-react'
+import { Search, Star, Plus } from 'lucide-react'
 import type { CollectionCardWithPrice, CardFilters, SortKey } from '@/types'
 import { filterCards } from '@/lib/filters'
 import { sortCards } from '@/lib/sorts'
@@ -69,8 +69,18 @@ export function CollectionShell({ cards: allCards }: { cards: CollectionCardWith
         <div className="px-4 md:px-8 py-4 space-y-5 max-w-[1400px] mx-auto">
           <StatsBar totals={totals} />
 
-          {/* Sort pills + count */}
+          {/* Sort pills + count + desktop add button */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            {/* Desktop add button */}
+            <button
+              onClick={() => setAddOpen(true)}
+              className="hidden md:flex flex-shrink-0 items-center gap-1.5 px-3 py-1.5 rounded-full font-mono text-[11px] transition-colors"
+              style={{ background: 'var(--accent)', color: '#000' }}
+            >
+              <Plus size={12} strokeWidth={2.5} />
+              Aggiungi
+            </button>
+
             {(['value', 'recent', 'alpha', 'pl', 'cost'] as SortKey[]).map((key) => {
               const labels: Record<string, string> = { value: 'Valore', recent: 'Recenti', alpha: 'A–Z', pl: 'P&L', cost: 'Costo' }
               const active = sort === key
