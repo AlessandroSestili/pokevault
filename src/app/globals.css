@@ -1,26 +1,80 @@
 @import "tailwindcss";
 
+/* ── PokeVault Design Tokens ───────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Backgrounds */
+  --bg-0: #0B0D12;
+  --bg-1: #13161E;
+  --bg-2: #1A1E29;
+  --bg-card: rgba(255, 255, 255, 0.03);
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.07);
+
+  /* Brand */
+  --accent: #FFCB2E;
+  --accent-dim: rgba(255, 203, 46, 0.12);
+
+  /* Semantic */
+  --pos: #2DD881;
+  --neg: #FF5B47;
+  --pos-dim: rgba(45, 216, 129, 0.12);
+  --neg-dim: rgba(255, 91, 71, 0.12);
+
+  /* Text */
+  --text-0: #F4F5F7;
+  --text-1: #9DA3B0;
+  --text-2: #5C6270;
+
+  /* Spacing */
+  --bottom-nav-h: 68px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--bg-0);
+  --color-foreground: var(--text-0);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains);
+  --font-display: var(--font-space);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Base ──────────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  height: 100%;
+  background: var(--bg-0);
+  color: var(--text-0);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Glass card surface ────────────────────────────────────────────────────── */
+.glass {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+}
+
+/* ── Utility: safe bottom padding for bottom nav ───────────────────────────── */
+.pb-nav {
+  padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
 }
