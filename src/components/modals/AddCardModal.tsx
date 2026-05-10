@@ -61,6 +61,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
   const [priceSource, setPriceSource] = useState<'api' | 'jap' | 'en-fallback' | null>(null)
   const [priceLoading, setPriceLoading] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
+  const [jpImages, setJpImages] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dq = useDebounce(query, 400)
 
@@ -131,6 +132,17 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     setSearching(true)
     searchJapaneseCardsAction(dq).then(r => { setJpResults(r); setSearching(false) })
   }, [catalog, dq])
+
+  // Preload TCGdex images for JP search results
+  useEffect(() => {
+    if (!jpResults.length) { setJpImages({}); return }
+    setJpImages({})
+    jpResults.forEach(card => {
+      fetchJpCardImage(card.set, card.number).then(url => {
+        if (url) setJpImages(prev => ({ ...prev, [card.id]: url }))
+      })
+    })
+  }, [jpResults])
 
   function selectCard(card: PokemonTcgCard) {
     setError(null)
@@ -327,8 +339,11 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                 <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 10, zIndex: 50, maxHeight: 320, overflowY: 'auto', boxShadow: '0 14px 40px rgba(0,0,0,.5)' }}>
                   {jpResults.map(card => (
                     <div key={card.id} className="card-search-result" onClick={() => selectJpCard(card)}>
-                      <div className="card-search-thumb" style={{ background: 'var(--bg-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
-                        🇯🇵
+                      <div className="card-search-thumb">
+                        {jpImages[card.id]
+                          ? <img src={jpImages[card.id]} alt={card.name} />
+                          : <span style={{ fontSize: 18 }}>🇯🇵</span>
+                        }
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name.replace(/\s+\d+\/\d+$/, '').replace(/\s*[-–]+\s*$/, '').trim()}</div>
