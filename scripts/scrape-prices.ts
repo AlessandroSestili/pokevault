@@ -46,14 +46,24 @@ async function main() {
     );
     log(`Set Pokémon: ${expansions.length}`);
 
-    // Carica mappa blueprint_id → card.id dal DB
-    const { data: dbCards } = await supabase
-      .from("market_cards")
-      .select("id, cardtrader_blueprint_id")
-      .not("cardtrader_blueprint_id", "is", null);
+    // Carica mappa blueprint_id → card.id dal DB (paginata)
+    const allDbCards: { id: string; cardtrader_blueprint_id: number }[] = [];
+    let from = 0;
+    const PAGE = 1000;
+    while (true) {
+      const { data } = await supabase
+        .from("market_cards")
+        .select("id, cardtrader_blueprint_id")
+        .not("cardtrader_blueprint_id", "is", null)
+        .range(from, from + PAGE - 1);
+      if (!data || data.length === 0) break;
+      allDbCards.push(...data);
+      if (data.length < PAGE) break;
+      from += PAGE;
+    }
 
     const blueprintToCardId = new Map<number, string>(
-      (dbCards ?? []).map((c) => [c.cardtrader_blueprint_id, c.id])
+      allDbCards.map((c) => [c.cardtrader_blueprint_id, c.id])
     );
     log(`Carte in DB con blueprint: ${blueprintToCardId.size}`);
 
