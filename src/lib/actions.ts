@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { createClient } from './supabase/server'
 import { insertCard, updateCard, deleteCard, upsertPriceSnapshot } from './queries'
 import { fetchCardById } from './api/pokemontcg'
 import { extractMarketPrice } from './api/prices'
