@@ -49,8 +49,9 @@ function parseQuery(raw: string): ParsedQuery {
   // pure number — "012", "55"
   if (/^\d+$/.test(s)) return { type: 'number', number: parseInt(s, 10) }
 
-  // set code only — alphanumeric, starts with letter, no spaces, up to 12 chars
-  if (/^[a-zA-Z][a-zA-Z0-9]{1,11}$/.test(s)) {
+  // set code only — alphanumeric, starts with letter, contains at least one digit (e.g. sv6, swsh12)
+  // Pure-alpha strings like "pikachu" fall through to name search
+  if (/^[a-zA-Z][a-zA-Z0-9]{1,11}$/.test(s) && /\d/.test(s)) {
     return { type: 'set', setId: s.toLowerCase() }
   }
 
