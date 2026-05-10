@@ -4,12 +4,11 @@ import { NextResponse } from "next/server";
 export async function GET() {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { db: { schema: "market" } }
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
   const { data, error } = await supabase
-    .from("scrape_runs")
+    .from("market_scrape_runs")
     .select("*")
     .order("started_at", { ascending: false })
     .limit(10);

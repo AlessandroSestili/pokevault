@@ -6,9 +6,7 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const POKEMON_GAME_ID = 5;
 const BASE_URL = "https://api.cardtrader.com/api/v2";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-  db: { schema: "market" },
-});
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 async function ct<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -54,7 +52,7 @@ async function main() {
   log("Avvio scraping CardTrader Pokémon...");
 
   const { data: run, error: runErr } = await supabase
-    .from("scrape_runs")
+    .from("market_scrape_runs")
     .insert({ status: "running" })
     .select()
     .single();
@@ -79,7 +77,7 @@ async function main() {
       // Aggiorna progresso nel DB ogni 5 set
       if (i % 5 === 0) {
         await supabase
-          .from("scrape_runs")
+          .from("market_scrape_runs")
           .update({ cards_updated: cardsUpdated })
           .eq("id", runId);
       }
@@ -92,7 +90,7 @@ async function main() {
 
         for (const bp of blueprints) {
           const { data: card, error: cardErr } = await supabase
-            .from("cards")
+            .from("market_cards")
             .upsert(
               {
                 cardtrader_blueprint_id: bp.id,
@@ -123,7 +121,7 @@ async function main() {
 
           if (products.length > 0) {
             const cents = products.map((p) => p.price.cents);
-            await supabase.from("prices").insert({
+            await supabase.from("market_prices").insert({
               card_id: card.id,
               source: "cardtrader",
               price_low: Math.min(...cents) / 100,
@@ -143,7 +141,7 @@ async function main() {
     }
   } finally {
     await supabase
-      .from("scrape_runs")
+      .from("market_scrape_runs")
       .update({
         status: "completed",
         completed_at: new Date().toISOString(),
