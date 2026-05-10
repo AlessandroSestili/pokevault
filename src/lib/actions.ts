@@ -8,12 +8,8 @@ export async function addCardAction(
   data: Omit<CollectionCard, 'id' | 'created_at'>,
   priceEur?: number
 ): Promise<string | null> {
-  if (!priceEur || priceEur <= 0) {
-    console.error('[addCard] blocked: no price provided')
-    return null
-  }
   const id = await insertCard(data)
-  if (id) {
+  if (id && priceEur && priceEur > 0) {
     const today = new Date().toISOString().slice(0, 10)
     await upsertPriceSnapshot(id, today, priceEur)
   }

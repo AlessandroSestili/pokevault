@@ -79,10 +79,6 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
 
   function selectCard(card: PokemonTcgCard) {
     const price = extractMarketPrice(card, 'cardmarket') ?? extractMarketPrice(card, 'tcgplayer')
-    if (!price) {
-      setError('Nessun prezzo disponibile per questa carta — cercane un\'altra')
-      return
-    }
     setError(null)
     setSelected(card)
     setForm(f => ({
@@ -92,7 +88,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
       card_number: `${card.number}/${card.set.printedTotal}`,
       element: (card.types?.[0] ?? 'colorless').toLowerCase(),
       rarity: card.rarity ?? 'Holo Rare',
-      current: price.toFixed(2),
+      current: price ? price.toFixed(2) : '',
       image_url: card.images?.large ?? card.images?.small ?? null,
       api_id: card.id,
     }))
@@ -113,8 +109,10 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     e.preventDefault()
     setError(null)
     const cond = parseFloat(form.condition)
+    const price = parseFloat(form.current)
     if (!form.name.trim()) { setError('Nome obbligatorio'); return }
     if (isNaN(cond) || cond < 1 || cond > 10) { setError('Grado non valido (1–10)'); return }
+    if (isNaN(price) || price <= 0) { setError('Valore obbligatorio (€ > 0)'); return }
 
     const manualPrice = parseFloat(form.current)
     console.log('[modal] submit', { name: form.name, api_id: form.api_id, current: form.current, manualPrice })
@@ -185,7 +183,6 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                         key={card.id}
                         className="card-search-result"
                         onClick={() => selectCard(card)}
-                        style={noPrice ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
                       >
                         <div className="card-search-thumb">
                           {card.images?.small && <img src={card.images.small} alt={card.name} />}
