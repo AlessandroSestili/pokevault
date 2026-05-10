@@ -78,8 +78,13 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
   }, [dq])
 
   function selectCard(card: PokemonTcgCard) {
-    setSelected(card)
     const price = extractMarketPrice(card, 'cardmarket') ?? extractMarketPrice(card, 'tcgplayer')
+    if (!price) {
+      setError('Nessun prezzo disponibile per questa carta — cercane un\'altra')
+      return
+    }
+    setError(null)
+    setSelected(card)
     setForm(f => ({
       ...f,
       name: card.name,
@@ -87,7 +92,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
       card_number: `${card.number}/${card.set.printedTotal}`,
       element: (card.types?.[0] ?? 'colorless').toLowerCase(),
       rarity: card.rarity ?? 'Holo Rare',
-      current: price ? price.toFixed(2) : f.current,
+      current: price.toFixed(2),
       image_url: card.images?.large ?? card.images?.small ?? null,
       api_id: card.id,
     }))
@@ -172,20 +177,30 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
               </div>
               {visible.length > 0 && (
                 <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 10, zIndex: 50, maxHeight: 320, overflowY: 'auto', boxShadow: '0 14px 40px rgba(0,0,0,.5)' }}>
-                  {visible.map(card => (
-                    <div key={card.id} className="card-search-result" onClick={() => selectCard(card)}>
-                      <div className="card-search-thumb">
-                        {card.images?.small && <img src={card.images.small} alt={card.name} />}
+                  {visible.map(card => {
+                    const cardPrice = extractMarketPrice(card, 'cardmarket') ?? extractMarketPrice(card, 'tcgplayer')
+                    const noPrice = !cardPrice
+                    return (
+                      <div
+                        key={card.id}
+                        className="card-search-result"
+                        onClick={() => selectCard(card)}
+                        style={noPrice ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                      >
+                        <div className="card-search-thumb">
+                          {card.images?.small && <img src={card.images.small} alt={card.name} />}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>{card.set.name} · {card.number}</div>
+                          {cardPrice
+                            ? <div style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>~€{cardPrice.toFixed(2)}</div>
+                            : <div style={{ fontSize: 10, color: 'var(--neg)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>nessun prezzo disponibile</div>
+                          }
+                        </div>
                       </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>{card.set.name} · {card.number}</div>
-                        {card.cardmarket?.prices.trendPrice && (
-                          <div style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>~€{card.cardmarket.prices.trendPrice.toFixed(2)}</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                   {hasMore && (
                     <button
                       type="button"
