@@ -64,10 +64,9 @@ async function main() {
   const errors: string[] = [];
 
   try {
-    const expansions = await ct<Expansion[]>(
-      `/expansions?game_id=${POKEMON_GAME_ID}`
-    );
-    log(`Set trovati: ${expansions.length}`);
+    const allExpansions = await ct<Expansion[]>(`/expansions`);
+    const expansions = allExpansions.filter((e) => e.game_id === POKEMON_GAME_ID);
+    log(`Set Pokémon trovati: ${expansions.length} (totale: ${allExpansions.length})`);
 
     for (let i = 0; i < expansions.length; i++) {
       const exp = expansions[i];
