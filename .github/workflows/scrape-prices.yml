@@ -1,14 +1,14 @@
-name: Weekly Market Scrape
+name: Weekly Price Update
 
 on:
   schedule:
     - cron: "0 3 * * 1" # ogni lunedì alle 03:00 UTC
-  workflow_dispatch: # run manuale dal pannello GitHub
+  workflow_dispatch:
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 360
 
     steps:
       - uses: actions/checkout@v4
@@ -20,9 +20,9 @@ jobs:
 
       - run: npm ci
 
-      - name: Run scraper
+      - name: Run prices scraper
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           CARDTRADER_TOKEN: ${{ secrets.CARDTRADER_TOKEN }}
-        run: npx tsx scripts/scrape-market.ts
+        run: npx tsx scripts/scrape-prices.ts
