@@ -50,7 +50,7 @@ export async function fetchCardById(id: string): Promise<CollectionCardWithPrice
 export async function insertCard(card: Omit<CollectionCard, 'id' | 'created_at'>): Promise<string | null> {
   const supabase = await createClient()
   const { data, error } = await supabase.from('cards').insert(card).select('id').single()
-  if (error) { console.error(error); return null }
+  if (error) { console.error('insertCard error:', JSON.stringify(error)); return null }
   return data?.id ?? null
 }
 
