@@ -112,12 +112,12 @@ async function lookupMarketPrice(
 
   const { data: prices } = await supabase
     .from('market_prices')
-    .select('price_mid')
+    .select('price_low')
     .in('card_id', cards.map(c => c.id))
     .order('scraped_at', { ascending: false })
     .limit(1)
 
-  return prices?.[0]?.price_mid ?? null
+  return prices?.[0]?.price_low ?? null
 }
 
 export async function resolveCardPriceAction(

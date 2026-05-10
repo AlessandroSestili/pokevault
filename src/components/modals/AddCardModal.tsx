@@ -96,7 +96,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
       set_name: card.set_name,
       card_number: card.number ?? '',
       rarity: card.rarity ?? f.rarity,
-      current: card.price?.price_mid ? card.price.price_mid.toFixed(2) : '',
+      current: card.price?.price_low ? card.price.price_low.toFixed(2) : '',
       image_url: card.image_url,
       api_id: card.id,
       language: (card.language?.toUpperCase() as Language) ?? f.language,
@@ -216,8 +216,8 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                         <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>
                           {card.set_name}{card.set_code ? ` (${card.set_code})` : ''}{card.number ? ` · ${card.number}` : ''}{card.rarity ? ` · ${card.rarity}` : ''}
                         </div>
-                        {card.price?.price_mid
-                          ? <div style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>~€{card.price.price_mid.toFixed(2)}</div>
+                        {card.price?.price_low
+                          ? <div style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>~€{card.price.price_low.toFixed(2)}</div>
                           : <div style={{ fontSize: 10, color: 'var(--neg)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>nessun prezzo disponibile</div>
                         }
                       </div>

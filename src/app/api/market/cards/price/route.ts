@@ -35,5 +35,5 @@ export async function GET(req: NextRequest) {
     .limit(1)
 
   const latest = prices?.[0] ?? null
-  return NextResponse.json({ price: latest?.price_mid ?? null, detail: latest })
+  return NextResponse.json({ price: latest?.price_low ?? null, detail: latest })
 }
