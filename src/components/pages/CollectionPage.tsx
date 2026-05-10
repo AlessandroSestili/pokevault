@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { ArrowUpDown, Grid3X3, List, Check, ChevronDown, Star } from 'lucide-react'
+import { ArrowUpDown, Grid3X3, List, Check, ChevronDown, Star, Layers } from 'lucide-react'
 import type { CollectionCardWithPrice } from '@/types'
 import { CardItem } from '../CardItem'
 import { ListRow } from '../ListRow'
@@ -58,6 +58,8 @@ export function CollectionPage({
   const [sort, setSort] = useState<SortKey>('value')
   const [sortOpen, setSortOpen] = useState(false)
   const [view, setView] = useState<'grid' | 'list'>('grid')
+  const [groupBySet, setGroupBySet] = useState(false)
+  const [collapsedSets, setCollapsedSets] = useState<Set<string>>(new Set())
   const sortRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -79,6 +81,24 @@ export function CollectionPage({
     if (filterFav) arr = arr.filter(c => c.is_favorite)
     return sortCards(arr, sort)
   }, [cards, search, filterElem, filterFav, sort])
+
+  const groupedSets = useMemo(() => {
+    const map = new Map<string, CollectionCardWithPrice[]>()
+    for (const c of filtered) {
+      const key = c.set_name || 'Senza set'
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(c)
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+  }, [filtered])
+
+  function toggleSet(name: string) {
+    setCollapsedSets(prev => {
+      const next = new Set(prev)
+      next.has(name) ? next.delete(name) : next.add(name)
+      return next
+    })
+  }
 
   return (
     <>
@@ -137,6 +157,9 @@ export function CollectionPage({
             <button className={view === 'list' ? 'is-active' : ''} onClick={() => setView('list')}>
               <List size={14} />
             </button>
+            <button className={groupBySet ? 'is-active' : ''} onClick={() => setGroupBySet(g => !g)} title="Raggruppa per set">
+              <Layers size={14} />
+            </button>
           </div>
         </div>
       </div>
@@ -145,6 +168,41 @@ export function CollectionPage({
         <div className="empty">
           <h3>Nessuna carta trovata</h3>
           <p>Prova a rimuovere qualche filtro o cambia la ricerca.</p>
+        </div>
+      ) : groupBySet ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {groupedSets.map(([setName, setCards]) => {
+            const collapsed = collapsedSets.has(setName)
+            const total = setCards.reduce((s, c) => s + (c.market_price ?? 0), 0)
+            return (
+              <div key={setName} style={{ border: '1px solid var(--line-2)', borderRadius: 12, overflow: 'hidden' }}>
+                <button
+                  onClick={() => toggleSet(setName)}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 14px', background: 'var(--bg-2)', cursor: 'pointer',
+                    fontFamily: 'var(--font-jetbrains)', fontSize: 12,
+                  }}
+                >
+                  <span style={{ fontWeight: 600, color: 'var(--ink-0)' }}>{setName}</span>
+                  <span style={{ display: 'flex', gap: 12, alignItems: 'center', color: 'var(--ink-3)' }}>
+                    <span>{setCards.length} carte</span>
+                    {total > 0 && <span style={{ color: 'var(--accent)' }}>€{total.toFixed(2)}</span>}
+                    <ChevronDown size={13} style={{ transform: collapsed ? 'rotate(-90deg)' : 'none', transition: 'transform .15s' }} />
+                  </span>
+                </button>
+                {!collapsed && (
+                  <div className="cards is-cozy" style={{ padding: '12px 12px' }}>
+                    {setCards.map((c, i) => (
+                      <div key={c.id} style={{ animationDelay: `${i * 20}ms` }}>
+                        <CardItem card={c} onOpen={onOpenCard} onToggleFav={onToggleFav} showSpark density="cozy" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       ) : view === 'grid' ? (
         <div className="cards is-cozy">
