@@ -68,7 +68,7 @@ function buildPokemonTcgQuery(parsed: ParsedQuery): string {
   }
 }
 
-async function queryPokemonTcg(q: string, pageSize = 20): Promise<PokemonTcgCard[]> {
+async function queryPokemonTcg(q: string, pageSize = 36): Promise<PokemonTcgCard[]> {
   try {
     const res = await fetch(`${BASE}/cards?q=${encodeURIComponent(q)}&pageSize=${pageSize}&orderBy=-set.releaseDate`)
     if (!res.ok) return []

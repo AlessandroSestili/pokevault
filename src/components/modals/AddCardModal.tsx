@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { X, Search, Loader2, Plus } from 'lucide-react'
+import { X, Search, Loader2, Plus, ChevronDown } from 'lucide-react'
 import type { PokemonTcgCard, Language, Source } from '@/types'
 import { searchCards } from '@/lib/api/pokemontcg'
 import { extractMarketPrice } from '@/lib/api/prices'
@@ -20,6 +20,8 @@ const ELEMENTS = [
   { key: 'darkness',  color: '#7A8AA0', glyph: '◆', label: 'Darkness' },
   { key: 'fairy',     color: '#FF7AC4', glyph: '❋', label: 'Fairy' },
 ]
+
+const PAGE = 8
 
 function useDebounce<T>(v: T, ms: number): T {
   const [d, setD] = useState(v)
@@ -45,6 +47,7 @@ const DEFAULT_FORM = {
 export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<PokemonTcgCard[]>([])
+  const [visibleCount, setVisibleCount] = useState(PAGE)
   const [searching, setSearching] = useState(false)
   const [selected, setSelected] = useState<PokemonTcgCard | null>(null)
   const [form, setForm] = useState({ ...DEFAULT_FORM })
@@ -56,7 +59,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     if (!open) {
       setTimeout(() => {
         setQuery(''); setResults([]); setSelected(null)
-        setForm({ ...DEFAULT_FORM }); setError(null)
+        setForm({ ...DEFAULT_FORM }); setError(null); setVisibleCount(PAGE)
       }, 300)
     }
   }, [open])
@@ -70,7 +73,8 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
   useEffect(() => {
     if (!dq.trim() || dq.length < 2) { setResults([]); return }
     setSearching(true)
-    searchCards(dq).then(r => { setResults(r.slice(0, 8)); setSearching(false) })
+    setVisibleCount(PAGE)
+    searchCards(dq).then(r => { setResults(r); setSearching(false) })
   }, [dq])
 
   function selectCard(card: PokemonTcgCard) {
@@ -89,6 +93,11 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     }))
     setQuery('')
     setResults([])
+  }
+
+  function clearSelected() {
+    setSelected(null)
+    setForm(f => ({ ...f, name: '', set_name: '', card_number: '', image_url: null, api_id: null }))
   }
 
   function upd<K extends keyof typeof form>(k: K, v: typeof form[K]) {
@@ -127,6 +136,9 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     })
   }
 
+  const visible = results.slice(0, visibleCount)
+  const hasMore = results.length > visibleCount
+
   return (
     <div className={'modal' + (open ? ' is-open' : '')} onClick={onClose}>
       <div className="modal__inner" onClick={e => e.stopPropagation()}>
@@ -153,9 +165,9 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                   style={{ paddingLeft: 34, paddingRight: searching ? 34 : undefined }}
                 />
               </div>
-              {results.length > 0 && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 10, zIndex: 50, maxHeight: 280, overflowY: 'auto', boxShadow: '0 14px 40px rgba(0,0,0,.5)' }}>
-                  {results.map(card => (
+              {visible.length > 0 && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 10, zIndex: 50, maxHeight: 320, overflowY: 'auto', boxShadow: '0 14px 40px rgba(0,0,0,.5)' }}>
+                  {visible.map(card => (
                     <div key={card.id} className="card-search-result" onClick={() => selectCard(card)}>
                       <div className="card-search-thumb">
                         {card.images?.small && <img src={card.images.small} alt={card.name} />}
@@ -164,14 +176,61 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                         <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</div>
                         <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>{card.set.name} · {card.number}</div>
                         {card.cardmarket?.prices.trendPrice && (
-                          <div style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>~${card.cardmarket.prices.trendPrice.toFixed(2)}</div>
+                          <div style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>~€{card.cardmarket.prices.trendPrice.toFixed(2)}</div>
                         )}
                       </div>
                     </div>
                   ))}
+                  {hasMore && (
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setVisibleCount(c => c + PAGE) }}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        width: '100%', padding: '10px 0',
+                        fontFamily: 'var(--font-jetbrains)', fontSize: 11,
+                        color: 'var(--ink-3)',
+                        borderTop: '1px solid var(--line-2)',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <ChevronDown size={12} />
+                      Carica altri ({results.length - visibleCount} rimasti)
+                    </button>
+                  )}
                 </div>
               )}
             </div>
+
+            {/* Selected card preview */}
+            {selected && form.image_url && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 14,
+                padding: '12px 14px',
+                background: 'var(--bg-1)',
+                border: '1px solid var(--line-2)',
+                borderRadius: 10,
+              }}>
+                <img
+                  src={form.image_url}
+                  alt={form.name}
+                  style={{ width: 54, height: 76, objectFit: 'contain', borderRadius: 6, flexShrink: 0 }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, color: 'var(--ink-0)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.name}</div>
+                  <div style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 11, color: 'var(--ink-3)', marginTop: 3 }}>{form.set_name} · {form.card_number}</div>
+                  {form.rarity && <div style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 10, color: 'var(--ink-3)', marginTop: 2 }}>{form.rarity}</div>}
+                </div>
+                <button
+                  type="button"
+                  onClick={clearSelected}
+                  style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 11, color: 'var(--ink-3)', flexShrink: 0, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--line-2)', background: 'transparent', cursor: 'pointer' }}
+                >
+                  Cambia
+                </button>
+              </div>
+            )}
 
             <div className="field">
               <label>Nome carta</label>
