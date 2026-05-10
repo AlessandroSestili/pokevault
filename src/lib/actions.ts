@@ -14,9 +14,13 @@ export async function syncMarketPricesAction(): Promise<{
   notFound: number
   notFoundCards: { name: string; set_code: string; language: string }[]
 }> {
-  const supabase = await createClient()
+  // Use service client for both reads and writes to bypass RLS on price_snapshots.
+  const serviceClient = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 
-  const { data: cards } = await supabase.from('cards').select('id, name, set_code, language')
+  const { data: cards } = await serviceClient.from('cards').select('id, name, set_name, set_code, language')
   if (!cards?.length) return { updated: 0, notFound: 0, notFoundCards: [] }
 
   const today = new Date().toISOString().slice(0, 10)
@@ -25,23 +29,23 @@ export async function syncMarketPricesAction(): Promise<{
   const notFoundCards: { name: string; set_code: string; language: string }[] = []
 
   for (const card of cards) {
-    let price = await lookupMarketPrice(card.name, card.set_code, card.language)
-    let priceSource = card.language
-
-    // Fallback to EN if native language not found
-    if (price === null && card.language !== 'EN') {
-      price = await lookupMarketPrice(card.name, card.set_code, 'EN')
-      if (price !== null) priceSource = 'EN-fallback'
-    }
+    const price = await lookupMarketPrice(card.name, card.set_code, card.language, card.set_name)
 
     if (price !== null) {
-      await upsertPriceSnapshot(card.id, today, price)
-      updated++
-      console.log(`[sync] ✓ ${card.name} (${card.set_code} / ${priceSource}) → €${price}`)
+      const { error } = await serviceClient.from('price_snapshots').upsert(
+        { card_id: card.id, date: today, price_eur: price, price_usd: null },
+        { onConflict: 'card_id,date' }
+      )
+      if (error) {
+        console.error(`[sync] upsert error for ${card.name}:`, error)
+      } else {
+        updated++
+        console.log(`[sync] ✓ ${card.name} (${card.set_name}) → €${price}`)
+      }
     } else {
       notFound++
       notFoundCards.push({ name: card.name, set_code: card.set_code, language: card.language })
-      console.log(`[sync] ✗ ${card.name} (${card.set_code} / ${card.language}) — not found`)
+      console.log(`[sync] ✗ ${card.name} (${card.set_name} / ${card.language}) — not found`)
     }
   }
 
@@ -91,7 +95,8 @@ function translateCardName(name: string): string {
 async function lookupMarketPrice(
   name: string,
   _setCode: string | null,
-  lang: string
+  _lang: string,
+  setName?: string | null
 ): Promise<number | null> {
   const supabase = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -100,21 +105,40 @@ async function lookupMarketPrice(
 
   const cleanName = translateCardName(cleanCardName(name))
 
-  // Match by cleaned name + language (set_code in collection is truncated, unusable for lookup)
-  const { data: cards } = await supabase
-    .from('market_cards')
-    .select('id')
-    .ilike('name', cleanName)
-    .eq('language', lang.toUpperCase())
-    .limit(10)
+  // CardTrader tags ALL Pokémon cards (including JP sets) as language="EN".
+  // Match by name + set_name only — set_name is the reliable distinguisher between JP/EN sets.
+  const setFilter = setName?.trim() ?? null
+  let cardIds: string[] | null = null
 
-  if (!cards?.length) return null
+  if (setFilter) {
+    const { data } = await supabase
+      .from('market_cards')
+      .select('id')
+      .ilike('name', cleanName)
+      .ilike('set_name', setFilter)
+      .limit(20)
+    if (data?.length) cardIds = data.map(c => c.id)
+  }
 
+  // Fall back to name-only if set filter returned nothing
+  if (!cardIds) {
+    const { data } = await supabase
+      .from('market_cards')
+      .select('id')
+      .ilike('name', cleanName)
+      .limit(10)
+    if (!data?.length) return null
+    cardIds = data.map(c => c.id)
+  }
+
+  // Use MAX price_low: collection is heavy on Illustration Rares (IR), so the more
+  // expensive blueprint within the set is the better approximation without card numbers.
   const { data: prices } = await supabase
     .from('market_prices')
     .select('price_low')
-    .in('card_id', cards.map(c => c.id))
-    .order('scraped_at', { ascending: false })
+    .in('card_id', cardIds)
+    .not('price_low', 'is', null)
+    .order('price_low', { ascending: false })
     .limit(1)
 
   return prices?.[0]?.price_low ?? null

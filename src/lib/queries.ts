@@ -1,4 +1,5 @@
 import { createClient } from './supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import type { CollectionCard, CollectionCardWithPrice, PriceSnapshot } from '@/types'
 
 // ─── Cards ────────────────────────────────────────────────────────────────────
@@ -76,7 +77,12 @@ export async function upsertPriceSnapshot(
   priceEur: number,
   priceUsd?: number
 ): Promise<void> {
-  const supabase = await createClient()
+  // Use service role to bypass RLS — price_snapshots are system-managed data,
+  // not user-specific rows, so session-based auth is not required here.
+  const supabase = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
   const { error } = await supabase.from('price_snapshots').upsert(
     { card_id: cardId, date, price_eur: priceEur, price_usd: priceUsd ?? null },
     { onConflict: 'card_id,date' }
