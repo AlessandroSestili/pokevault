@@ -10,9 +10,9 @@ import { CardItem } from '../CardItem'
 function fmtMoney(v: number) {
   const n = Math.abs(v)
   const s = n >= 1000
-    ? n.toLocaleString('en-US', { maximumFractionDigits: 0 })
-    : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return (v < 0 ? '−' : '') + '$' + s
+    ? n.toLocaleString('it-IT', { maximumFractionDigits: 0 })
+    : n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return (v < 0 ? '−' : '') + '€' + s
 }
 function fmtPct(v: number) {
   return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1) + '%'

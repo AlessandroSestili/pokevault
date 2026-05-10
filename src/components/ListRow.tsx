@@ -6,7 +6,7 @@ import { getElement } from '@/lib/elements'
 
 function fmtMoney(v: number | null) {
   if (v == null) return '—'
-  return '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return '€' + Math.abs(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 function fmtPct(v: number) {
   return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1) + '%'
