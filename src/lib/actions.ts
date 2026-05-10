@@ -4,8 +4,13 @@ import { revalidatePath } from 'next/cache'
 import { insertCard, updateCard, deleteCard, upsertPriceSnapshot } from './queries'
 import { fetchCardById } from './api/pokemontcg'
 import { extractMarketPrice } from './api/prices'
-import { fetchJapaneseCardPrice } from './api/justtcg'
+import { fetchJapaneseCardPrice, searchJapaneseCards } from './api/justtcg'
+import type { JustTcgSearchResult } from './api/justtcg'
 import type { CollectionCard, Language, Source } from '@/types'
+
+export async function searchJapaneseCardsAction(query: string): Promise<JustTcgSearchResult[]> {
+  return searchJapaneseCards(query)
+}
 
 export async function resolveCardPriceAction(
   cardName: string,

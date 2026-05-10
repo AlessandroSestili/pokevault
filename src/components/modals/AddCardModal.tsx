@@ -3,9 +3,10 @@
 import { useState, useEffect, useTransition } from 'react'
 import { X, Search, Loader2, Plus, ChevronDown } from 'lucide-react'
 import type { PokemonTcgCard, Language, Source } from '@/types'
+import type { JustTcgSearchResult } from '@/lib/api/justtcg'
 import { searchCards } from '@/lib/api/pokemontcg'
 import { extractMarketPrice } from '@/lib/api/prices'
-import { addCardAction, resolveCardPriceAction } from '@/lib/actions'
+import { addCardAction, resolveCardPriceAction, searchJapaneseCardsAction } from '@/lib/actions'
 
 const LANGUAGES: Language[] = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
 const SOURCES: Source[] = ['Cardmarket', 'eBay', 'TCGPlayer', 'Negozio locale', 'Scambio', 'Asta', 'Altro']
@@ -45,11 +46,14 @@ const DEFAULT_FORM = {
 }
 
 export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [catalog, setCatalog] = useState<'EN' | 'JP'>('EN')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<PokemonTcgCard[]>([])
+  const [jpResults, setJpResults] = useState<JustTcgSearchResult[]>([])
   const [visibleCount, setVisibleCount] = useState(PAGE)
   const [searching, setSearching] = useState(false)
   const [selected, setSelected] = useState<PokemonTcgCard | null>(null)
+  const [selectedJp, setSelectedJp] = useState<JustTcgSearchResult | null>(null)
   const [form, setForm] = useState({ ...DEFAULT_FORM })
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -57,17 +61,28 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
   const [priceLoading, setPriceLoading] = useState(false)
   const dq = useDebounce(query, 400)
 
+  // Reset on close
   useEffect(() => {
     if (!open) {
       setTimeout(() => {
-        setQuery(''); setResults([]); setSelected(null)
+        setQuery(''); setResults([]); setJpResults([]); setSelected(null); setSelectedJp(null)
         setForm({ ...DEFAULT_FORM }); setError(null); setVisibleCount(PAGE)
-        setPriceSource(null); setPriceLoading(false)
+        setPriceSource(null); setPriceLoading(false); setCatalog('EN')
       }, 300)
     }
   }, [open])
 
+  // Clear selection and reset language when catalog switches
   useEffect(() => {
+    setSelected(null); setSelectedJp(null)
+    setResults([]); setJpResults([])
+    setQuery(''); setPriceSource(null)
+    setForm(f => ({ ...f, language: catalog === 'JP' ? 'JP' : 'EN', current: '', api_id: null, image_url: null }))
+  }, [catalog])
+
+  // EN price re-fetch when language changes (EN catalog only)
+  useEffect(() => {
+    if (selectedJp) return
     if (!selected) return
     setPriceLoading(true)
     if (form.language === 'JP') {
@@ -91,16 +106,25 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  // EN search
   useEffect(() => {
-    if (!dq.trim() || dq.length < 2) { setResults([]); return }
+    if (catalog !== 'EN' || !dq.trim() || dq.length < 2) { setResults([]); return }
     setSearching(true)
     setVisibleCount(PAGE)
     searchCards(dq).then(r => { setResults(r); setSearching(false) })
-  }, [dq])
+  }, [catalog, dq])
+
+  // JP search via JustTCG server action
+  useEffect(() => {
+    if (catalog !== 'JP' || !dq.trim() || dq.length < 2) { setJpResults([]); return }
+    setSearching(true)
+    searchJapaneseCardsAction(dq).then(r => { setJpResults(r); setSearching(false) })
+  }, [catalog, dq])
 
   function selectCard(card: PokemonTcgCard) {
     setError(null)
     setSelected(card)
+    setSelectedJp(null)
     setForm(f => ({
       ...f,
       name: card.name,
@@ -116,8 +140,29 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     setResults([])
   }
 
+  function selectJpCard(card: JustTcgSearchResult) {
+    setError(null)
+    setSelectedJp(card)
+    setSelected(null)
+    setForm(f => ({
+      ...f,
+      name: card.name,
+      set_name: card.set_name,
+      card_number: card.number,
+      rarity: card.rarity || f.rarity,
+      current: card.priceEur ? card.priceEur.toFixed(2) : '',
+      image_url: null,
+      api_id: card.id,
+      language: 'JP',
+    }))
+    setPriceSource(card.priceEur ? 'jap' : null)
+    setQuery('')
+    setJpResults([])
+  }
+
   function clearSelected() {
     setSelected(null)
+    setSelectedJp(null)
     setPriceSource(null)
     setForm(f => ({ ...f, name: '', set_name: '', card_number: '', current: '', image_url: null, api_id: null }))
   }
@@ -145,7 +190,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
         set_code: (form.set_name || '').toUpperCase().slice(0, 6),
         card_number: form.card_number,
         api_id: form.api_id,
-        api_source: selected ? 'pokemontcg' : 'manual',
+        api_source: selectedJp ? 'manual' : (selected ? 'pokemontcg' : 'manual'),
         image_url: form.image_url,
         element: form.element || null,
         rarity: form.rarity || null,
@@ -178,6 +223,24 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
 
         <form onSubmit={handleSubmit}>
           <div className="modal__body">
+            {/* Catalog toggle */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+              <button
+                type="button"
+                className={'chip' + (catalog === 'EN' ? ' is-active' : '')}
+                onClick={() => setCatalog('EN')}
+              >
+                EN / IT / DE
+              </button>
+              <button
+                type="button"
+                className={'chip' + (catalog === 'JP' ? ' is-active' : '')}
+                onClick={() => setCatalog('JP')}
+              >
+                JP
+              </button>
+            </div>
+
             {/* Search */}
             <div className="field" style={{ position: 'relative' }}>
               <label>Cerca carta (opzionale)</label>
@@ -187,21 +250,18 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                 <input
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  placeholder="Nome, codice (sv6-012)..."
+                  placeholder={catalog === 'JP' ? 'Nome carta JP (es. Charizard V)...' : 'Nome, codice (sv6-012)...'}
                   style={{ paddingLeft: 34, paddingRight: searching ? 34 : undefined }}
                 />
               </div>
-              {visible.length > 0 && (
+
+              {/* EN results dropdown */}
+              {catalog === 'EN' && visible.length > 0 && (
                 <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 10, zIndex: 50, maxHeight: 320, overflowY: 'auto', boxShadow: '0 14px 40px rgba(0,0,0,.5)' }}>
                   {visible.map(card => {
                     const cardPrice = extractMarketPrice(card, 'cardmarket') ?? extractMarketPrice(card, 'tcgplayer')
-                    const noPrice = !cardPrice
                     return (
-                      <div
-                        key={card.id}
-                        className="card-search-result"
-                        onClick={() => selectCard(card)}
-                      >
+                      <div key={card.id} className="card-search-result" onClick={() => selectCard(card)}>
                         <div className="card-search-thumb">
                           {card.images?.small && <img src={card.images.small} alt={card.name} />}
                         </div>
@@ -236,9 +296,32 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                   )}
                 </div>
               )}
+
+              {/* JP results dropdown */}
+              {catalog === 'JP' && jpResults.length > 0 && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 10, zIndex: 50, maxHeight: 320, overflowY: 'auto', boxShadow: '0 14px 40px rgba(0,0,0,.5)' }}>
+                  {jpResults.map(card => (
+                    <div key={card.id} className="card-search-result" onClick={() => selectJpCard(card)}>
+                      <div className="card-search-thumb" style={{ background: 'var(--bg-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+                        🇯🇵
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>
+                          {card.set_name}{card.number ? ` · ${card.number}` : ''}{card.rarity ? ` · ${card.rarity}` : ''}
+                        </div>
+                        {card.priceEur
+                          ? <div style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>~€{card.priceEur.toFixed(2)}</div>
+                          : <div style={{ fontSize: 10, color: 'var(--neg)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>nessun prezzo disponibile</div>
+                        }
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Selected card preview */}
+            {/* EN selected card preview */}
             {selected && form.image_url && (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 14,
@@ -256,6 +339,35 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                   <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, color: 'var(--ink-0)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.name}</div>
                   <div style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 11, color: 'var(--ink-3)', marginTop: 3 }}>{form.set_name} · {form.card_number}</div>
                   {form.rarity && <div style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 10, color: 'var(--ink-3)', marginTop: 2 }}>{form.rarity}</div>}
+                </div>
+                <button
+                  type="button"
+                  onClick={clearSelected}
+                  style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 11, color: 'var(--ink-3)', flexShrink: 0, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--line-2)', background: 'transparent', cursor: 'pointer' }}
+                >
+                  Cambia
+                </button>
+              </div>
+            )}
+
+            {/* JP selected card preview */}
+            {selectedJp && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 14,
+                padding: '12px 14px',
+                background: 'var(--bg-1)',
+                border: '1px solid var(--line-2)',
+                borderRadius: 10,
+              }}>
+                <div style={{ width: 54, height: 76, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>
+                  🇯🇵
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, color: 'var(--ink-0)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedJp.name}</div>
+                  <div style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 11, color: 'var(--ink-3)', marginTop: 3 }}>
+                    {selectedJp.set_name}{selectedJp.number ? ` · ${selectedJp.number}` : ''}
+                  </div>
+                  {selectedJp.rarity && <div style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 10, color: 'var(--ink-3)', marginTop: 2 }}>{selectedJp.rarity}</div>}
                 </div>
                 <button
                   type="button"
@@ -340,7 +452,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                 {!priceLoading && priceSource === 'api' && <span style={{ color: 'var(--pos)', marginLeft: 6, fontSize: 10 }}>· da API</span>}
                 {!priceLoading && priceSource === 'jap' && <span style={{ color: 'var(--pos)', marginLeft: 6, fontSize: 10 }}>· JAP API</span>}
                 {!priceLoading && priceSource === 'en-fallback' && <span style={{ color: 'var(--lightning, #FFCB2E)', marginLeft: 6, fontSize: 10 }}>· EN fallback</span>}
-                {!priceLoading && selected && !priceSource && !form.current && <span style={{ color: 'var(--lightning, #FFCB2E)', marginLeft: 6, fontSize: 10 }}>· inserisci manualmente</span>}
+                {!priceLoading && (selected || selectedJp) && !priceSource && !form.current && <span style={{ color: 'var(--lightning, #FFCB2E)', marginLeft: 6, fontSize: 10 }}>· inserisci manualmente</span>}
               </label>
               <input
                 type="number"
@@ -350,7 +462,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                 onChange={e => upd('current', e.target.value)}
                 placeholder="es. 12.50"
                 disabled={priceLoading}
-                style={selected && !form.current && !priceLoading ? { borderColor: '#FFCB2E' } : undefined}
+                style={(selected || selectedJp) && !form.current && !priceLoading ? { borderColor: '#FFCB2E' } : undefined}
               />
             </div>
 
