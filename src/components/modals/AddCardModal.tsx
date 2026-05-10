@@ -153,10 +153,11 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     setError(null)
     setSelectedJp(card)
     setSelected(null)
+    const cleanSetName = card.set_name.replace(/^[^:]+:\s*/, '')
     setForm(f => ({
       ...f,
       name: card.name,
-      set_name: card.set_name,
+      set_name: cleanSetName,
       card_number: card.number,
       rarity: card.rarity || f.rarity,
       current: card.priceEur ? card.priceEur.toFixed(2) : '',
@@ -317,7 +318,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</div>
                         <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>
-                          {card.set_name}{card.number ? ` · ${card.number}` : ''}{card.rarity ? ` · ${card.rarity}` : ''}
+                          {card.set_name.replace(/^[^:]+:\s*/, '')}{card.number ? ` · ${card.number}` : ''}{card.rarity ? ` · ${card.rarity}` : ''}
                         </div>
                         {card.priceEur
                           ? <div style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>~€{card.priceEur.toFixed(2)}</div>
