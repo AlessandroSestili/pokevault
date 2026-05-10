@@ -6,6 +6,7 @@ import type { PokemonTcgCard, Language, Source } from '@/types'
 import type { JustTcgSearchResult } from '@/lib/api/justtcg'
 import { searchCards } from '@/lib/api/pokemontcg'
 import { extractMarketPrice } from '@/lib/api/prices'
+import { fetchJpCardImage } from '@/lib/api/tcgdex'
 import { addCardAction, resolveCardPriceAction, searchJapaneseCardsAction } from '@/lib/actions'
 
 const LANGUAGES: Language[] = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
@@ -113,6 +114,14 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     setVisibleCount(PAGE)
     searchCards(dq).then(r => { setResults(r); setSearching(false) })
   }, [catalog, dq])
+
+  // Fetch TCGdex JP image after selecting a JP card
+  useEffect(() => {
+    if (!selectedJp) return
+    fetchJpCardImage(selectedJp.set, selectedJp.number).then(url => {
+      if (url) setForm(f => ({ ...f, image_url: url }))
+    })
+  }, [selectedJp])
 
   // JP search via JustTCG server action
   useEffect(() => {
@@ -359,8 +368,11 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                 border: '1px solid var(--line-2)',
                 borderRadius: 10,
               }}>
-                <div style={{ width: 54, height: 76, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>
-                  🇯🇵
+                <div style={{ width: 54, height: 76, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {form.image_url
+                    ? <img src={form.image_url} alt={selectedJp.name} style={{ width: 54, height: 76, objectFit: 'contain', borderRadius: 6 }} />
+                    : <span style={{ fontSize: 28 }}>🇯🇵</span>
+                  }
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, color: 'var(--ink-0)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedJp.name}</div>

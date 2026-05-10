@@ -84,3 +84,22 @@ export async function searchCardsTcgDex(
     return [];
   }
 }
+
+// Derive a TCGdex JP image from a JustTCG set ID + card number.
+// JustTCG set IDs are like "sv2a-paradise-dragona-pokemon-japan" → set code "sv2a"
+// Card numbers like "013/172" or "077/070" → localId "013" / "077"
+export async function fetchJpCardImage(justTcgSetId: string, number: string): Promise<string | null> {
+  const setCode = justTcgSetId.split('-')[0].toUpperCase()
+  const rawNum = number.split('/')[0].replace(/\D/g, '')
+  if (!setCode || !rawNum) return null
+  const localId = rawNum.padStart(3, '0')
+
+  try {
+    const res = await fetch(`${BASE}/ja/cards/${setCode}-${localId}`, { next: { revalidate: 86400 } })
+    if (!res.ok) return null
+    const card = await res.json()
+    return card.image ? `${card.image}/high.webp` : null
+  } catch {
+    return null
+  }
+}

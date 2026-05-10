@@ -11,6 +11,7 @@ interface JustTcgVariant {
 interface JustTcgCard {
   id: string
   name: string
+  set: string
   set_name: string
   number: string
   rarity: string
@@ -20,6 +21,7 @@ interface JustTcgCard {
 export interface JustTcgSearchResult {
   id: string
   name: string
+  set: string
   set_name: string
   number: string
   rarity: string
@@ -63,6 +65,7 @@ export async function searchJapaneseCards(query: string): Promise<JustTcgSearchR
     return cards.map(card => ({
       id: card.id,
       name: card.name,
+      set: card.set || '',
       set_name: card.set_name,
       number: card.number || '',
       rarity: card.rarity || '',
