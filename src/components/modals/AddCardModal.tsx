@@ -154,9 +154,10 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     setSelectedJp(card)
     setSelected(null)
     const cleanSetName = card.set_name.replace(/^[^:]+:\s*/, '')
+    const cleanName = card.name.replace(/\s+\d+\/\d+$/, '').trim()
     setForm(f => ({
       ...f,
-      name: card.name,
+      name: cleanName,
       set_name: cleanSetName,
       card_number: card.number,
       rarity: card.rarity || f.rarity,
@@ -316,7 +317,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                         🇯🇵
                       </div>
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</div>
+                        <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name.replace(/\s+\d+\/\d+$/, '')}</div>
                         <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>
                           {card.set_name.replace(/^[^:]+:\s*/, '')}{card.number ? ` · ${card.number}` : ''}{card.rarity ? ` · ${card.rarity}` : ''}
                         </div>
