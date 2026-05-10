@@ -45,7 +45,6 @@ const DEFAULT_FORM = {
 }
 
 export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [catalog, setCatalog] = useState<'EN' | 'JP'>('EN')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<MarketCard[]>([])
   const [visibleCount, setVisibleCount] = useState(PAGE)
@@ -63,15 +62,10 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
       setTimeout(() => {
         setQuery(''); setResults([]); setSelected(null)
         setForm({ ...DEFAULT_FORM }); setError(null); setVisibleCount(PAGE)
-        setImageUploading(false); setCatalog('EN')
+        setImageUploading(false)
       }, 300)
     }
   }, [open])
-
-  useEffect(() => {
-    setSelected(null); setResults([]); setQuery('')
-    setForm(f => ({ ...f, language: catalog === 'JP' ? 'JP' : 'EN', current: '', api_id: null, image_url: null }))
-  }, [catalog])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -83,9 +77,8 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     if (!dq.trim() || dq.length < 2) { setResults([]); return }
     setSearching(true)
     setVisibleCount(PAGE)
-    const lang = catalog === 'JP' ? 'JP' : undefined
-    searchMarketCards(dq, lang, 40).then(r => { setResults(r); setSearching(false) })
-  }, [catalog, dq])
+    searchMarketCards(dq, undefined, 40).then(r => { setResults(r); setSearching(false) })
+  }, [dq])
 
   function selectCard(card: MarketCard) {
     setError(null)
@@ -177,16 +170,6 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
 
         <form onSubmit={handleSubmit}>
           <div className="modal__body">
-            {/* Catalog toggle */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
-              <button type="button" className={'chip' + (catalog === 'EN' ? ' is-active' : '')} onClick={() => setCatalog('EN')}>
-                EN / IT / DE
-              </button>
-              <button type="button" className={'chip' + (catalog === 'JP' ? ' is-active' : '')} onClick={() => setCatalog('JP')}>
-                JP
-              </button>
-            </div>
-
             {/* Search */}
             <div className="field" style={{ position: 'relative' }}>
               <label>Cerca carta (opzionale)</label>
@@ -196,7 +179,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                 <input
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  placeholder={catalog === 'JP' ? 'Nome carta JP (es. Charizard V)...' : 'Nome carta (es. Charizard)...'}
+                  placeholder="Nome carta (es. Charizard)..."
                   style={{ paddingLeft: 34, paddingRight: searching ? 34 : undefined }}
                 />
               </div>
@@ -208,7 +191,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                       <div className="card-search-thumb">
                         {card.image_url
                           ? <img src={card.image_url} alt={card.name} />
-                          : <span style={{ fontSize: 18 }}>{catalog === 'JP' ? '🇯🇵' : '🃏'}</span>
+                          : <span style={{ fontSize: 18 }}>🃏</span>
                         }
                       </div>
                       <div style={{ minWidth: 0 }}>
