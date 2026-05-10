@@ -25,17 +25,10 @@ export const metadata: Metadata = {
   description: "Track your Pokémon card collection",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full`}
-    >
-      <body className="min-h-full flex flex-col font-sans antialiased">
+    <html lang="it" className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
+      <body>
         {children}
       </body>
     </html>

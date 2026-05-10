@@ -1,5 +1,4 @@
-import { CollectionShell } from '@/components/collection/CollectionShell'
-import { Topbar } from '@/components/layout/Topbar'
+import { AppShell } from '@/components/AppShell'
 import { fetchCards } from '@/lib/queries'
 
 export default async function HomePage() {
@@ -7,13 +6,8 @@ export default async function HomePage() {
   try {
     cards = await fetchCards()
   } catch {
-    // Supabase not configured yet — empty state
+    // Supabase not configured — empty state
   }
 
-  return (
-    <div className="flex flex-col min-h-screen">
-      <Topbar pathname="/" />
-      <CollectionShell cards={cards} />
-    </div>
-  )
+  return <AppShell initialCards={cards} />
 }
