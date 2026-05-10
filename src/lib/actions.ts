@@ -1,13 +1,24 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { insertCard, updateCard, deleteCard } from './queries'
+import { insertCard, updateCard, deleteCard, upsertPriceSnapshot } from './queries'
+import { fetchCardById } from './api/pokemontcg'
+import { extractMarketPrice } from './api/prices'
 import type { CollectionCard, Language, Source } from '@/types'
 
 export async function addCardAction(
   data: Omit<CollectionCard, 'id' | 'created_at'>
 ): Promise<string | null> {
   const id = await insertCard(data)
+  if (id && data.api_id && data.api_source === 'pokemontcg') {
+    const tcgCard = await fetchCardById(data.api_id)
+    const priceEur = tcgCard ? (extractMarketPrice(tcgCard, 'cardmarket') ?? null) : null
+    const priceUsd = tcgCard ? (extractMarketPrice(tcgCard, 'tcgplayer') ?? undefined) : undefined
+    if (priceEur !== null) {
+      const today = new Date().toISOString().slice(0, 10)
+      await upsertPriceSnapshot(id, today, priceEur, priceUsd)
+    }
+  }
   revalidatePath('/')
   return id
 }

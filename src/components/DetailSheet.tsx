@@ -1,10 +1,14 @@
 'use client'
 
-import { useState } from 'react'
-import { X, Star, Pencil, Trash2 } from 'lucide-react'
-import type { CollectionCardWithPrice } from '@/types'
+import { useState, useTransition } from 'react'
+import { X, Star, Pencil, Trash2, ChevronLeft } from 'lucide-react'
+import type { CollectionCardWithPrice, Language, Source } from '@/types'
 import { getElement, getInitials } from '@/lib/elements'
 import { AreaChart } from './charts/AreaChart'
+import { deleteCardAction, editCardAction } from '@/lib/actions'
+
+const LANGUAGES: Language[] = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
+const SOURCES: Source[] = ['Cardmarket', 'eBay', 'TCGPlayer', 'Negozio locale', 'Scambio', 'Asta', 'Altro']
 
 function fmtMoney(v: number | null) {
   if (v == null) return '—'
@@ -33,6 +37,14 @@ export function DetailSheet({
   onToggleFav: (id: string) => void
 }) {
   const [range, setRange] = useState<Range>('30d')
+  const [editing, setEditing] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const [condition, setCondition] = useState('')
+  const [language, setLanguage] = useState<Language>('EN')
+  const [source, setSource] = useState<Source>('Cardmarket')
+  const [acquiredDate, setAcquiredDate] = useState('')
+  const [notes, setNotes] = useState('')
+  const [editError, setEditError] = useState<string | null>(null)
 
   if (!card) {
     return (
@@ -63,22 +75,111 @@ export function DetailSheet({
     ? ((chartValues2[chartValues2.length - 1] - chartValues2[0]) / chartValues2[0]) * 100
     : 0
 
+  function openEdit() {
+    setCondition(String(card!.condition))
+    setLanguage(card!.language as Language)
+    setSource(card!.source as Source)
+    setAcquiredDate(card!.acquired_date)
+    setNotes(card!.notes ?? '')
+    setEditError(null)
+    setEditing(true)
+  }
+
+  function handleDelete() {
+    const id = card!.id
+    startTransition(async () => {
+      await deleteCardAction(id)
+      onClose()
+    })
+  }
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    const conditionNum = parseFloat(condition)
+    if (isNaN(conditionNum) || conditionNum < 1 || conditionNum > 10) {
+      setEditError('Condizione non valida (1–10)')
+      return
+    }
+    const id = card!.id
+    startTransition(async () => {
+      const ok = await editCardAction(id, {
+        condition: conditionNum,
+        language,
+        source,
+        acquired_date: acquiredDate,
+        notes: notes.trim() || null,
+      })
+      if (ok) setEditing(false)
+      else setEditError('Errore durante il salvataggio')
+    })
+  }
+
   return (
     <>
-      <div className={'scrim' + (open ? ' is-open' : '')} onClick={onClose} />
+      <div className={'scrim' + (open ? ' is-open' : '')} onClick={() => { setEditing(false); onClose() }} />
       <aside className={'sheet' + (open ? ' is-open' : '')}>
         <div className="sheet__head">
-          <h3>Dettaglio carta</h3>
-          <button
-            className={'card__star' + (card.is_favorite ? ' is-fav' : '')}
-            style={{ width: 30, height: 30, background: 'var(--bg-2)', border: '1px solid var(--line)', margin: 0 }}
-            onClick={() => onToggleFav(card.id)}
-          >
-            <Star size={14} fill={card.is_favorite ? 'currentColor' : 'none'} strokeWidth={1.5} />
-          </button>
-          <button className="sheet__close" onClick={onClose}><X size={14} /></button>
+          <h3>{editing ? 'Modifica carta' : 'Dettaglio carta'}</h3>
+          {!editing && (
+            <button
+              className={'card__star' + (card.is_favorite ? ' is-fav' : '')}
+              style={{ width: 30, height: 30, background: 'var(--bg-2)', border: '1px solid var(--line)', margin: 0 }}
+              onClick={() => onToggleFav(card.id)}
+            >
+              <Star size={14} fill={card.is_favorite ? 'currentColor' : 'none'} strokeWidth={1.5} />
+            </button>
+          )}
+          <button className="sheet__close" onClick={() => { setEditing(false); onClose() }}><X size={14} /></button>
         </div>
 
+        {editing ? (
+          <div className="sheet__body">
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-jetbrains)', fontSize: 11, color: 'var(--ink-3)', marginBottom: 16, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            >
+              <ChevronLeft size={13} /> Indietro
+            </button>
+            <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {[
+                { label: 'Condizione (PSA)', node: (
+                  <input type="number" min="1" max="10" step="0.5" value={condition} onChange={e => setCondition(e.target.value)}
+                    style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--line)', color: 'var(--ink-0)', borderRadius: 10, padding: '9px 12px', fontFamily: 'var(--font-jetbrains)', fontSize: 13 }} required />
+                )},
+                { label: 'Lingua', node: (
+                  <select value={language} onChange={e => setLanguage(e.target.value as Language)}
+                    style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--line)', color: 'var(--ink-0)', borderRadius: 10, padding: '9px 12px', fontFamily: 'var(--font-jetbrains)', fontSize: 13 }}>
+                    {LANGUAGES.map(l => <option key={l}>{l}</option>)}
+                  </select>
+                )},
+                { label: 'Fonte', node: (
+                  <select value={source} onChange={e => setSource(e.target.value as Source)}
+                    style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--line)', color: 'var(--ink-0)', borderRadius: 10, padding: '9px 12px', fontFamily: 'var(--font-jetbrains)', fontSize: 13 }}>
+                    {SOURCES.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                )},
+                { label: 'Data acquisto', node: (
+                  <input type="date" value={acquiredDate} onChange={e => setAcquiredDate(e.target.value)}
+                    style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--line)', color: 'var(--ink-0)', borderRadius: 10, padding: '9px 12px', fontFamily: 'var(--font-jetbrains)', fontSize: 13 }} required />
+                )},
+                { label: 'Note (opzionale)', node: (
+                  <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+                    style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--line)', color: 'var(--ink-0)', borderRadius: 10, padding: '9px 12px', fontFamily: 'var(--font-jetbrains)', fontSize: 13, resize: 'none' }} />
+                )},
+              ].map(({ label, node }) => (
+                <div key={label}>
+                  <div style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: 6 }}>{label}</div>
+                  {node}
+                </div>
+              ))}
+              {editError && <p style={{ color: 'var(--neg)', fontFamily: 'var(--font-jetbrains)', fontSize: 12, textAlign: 'center', margin: 0 }}>{editError}</p>}
+              <button type="submit" disabled={isPending} className="btn btn--primary" style={{ width: '100%', justifyContent: 'center', opacity: isPending ? 0.5 : 1 }}>
+                {isPending ? 'Salvo...' : 'Salva modifiche'}
+              </button>
+            </form>
+          </div>
+        ) : (
         <div className="sheet__body">
           <div className="sheet__hero">
             <div className="sheet__art" style={{ '--art-a': el.color, '--art-b': el.glow } as React.CSSProperties}>
@@ -142,12 +243,13 @@ export function DetailSheet({
           )}
 
           <div className="sheet__actions">
-            <button className="btn"><Pencil size={13} /> Modifica</button>
-            <button className="btn btn--ghost" style={{ marginLeft: 'auto', color: 'var(--neg)' }}>
+            <button className="btn" onClick={openEdit} disabled={isPending}><Pencil size={13} /> Modifica</button>
+            <button className="btn btn--ghost" style={{ marginLeft: 'auto', color: 'var(--neg)' }} onClick={handleDelete} disabled={isPending}>
               <Trash2 size={13} /> Rimuovi
             </button>
           </div>
         </div>
+        )}
       </aside>
     </>
   )
