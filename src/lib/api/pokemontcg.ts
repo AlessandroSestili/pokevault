@@ -29,6 +29,7 @@ type ParsedQuery =
   | { type: 'numTotal'; number: number; total: number }
   | { type: 'set'; setId: string }
   | { type: 'number'; number: number }
+  | { type: 'promoNum'; rawNumber: string }
   | { type: 'name'; name: string }
 
 function parseQuery(raw: string): ParsedQuery {
@@ -49,6 +50,13 @@ function parseQuery(raw: string): ParsedQuery {
   // pure number — "012", "55"
   if (/^\d+$/.test(s)) return { type: 'number', number: parseInt(s, 10) }
 
+  // promo format: letter-prefix directly followed by 3+ digits (e.g. SWSH260, XY123, BW101)
+  // distinguishes from set codes like sv6, swsh12 which have 1-2 digit suffixes
+  const promoMatch = s.match(/^([a-zA-Z]{1,6})(\d{3,})$/i)
+  if (promoMatch) {
+    return { type: 'promoNum', rawNumber: s.toUpperCase() }
+  }
+
   // set code only — alphanumeric, starts with letter, contains at least one digit (e.g. sv6, swsh12)
   // Pure-alpha strings like "pikachu" fall through to name search
   if (/^[a-zA-Z][a-zA-Z0-9]{1,11}$/.test(s) && /\d/.test(s)) {
@@ -60,11 +68,12 @@ function parseQuery(raw: string): ParsedQuery {
 
 function buildPokemonTcgQuery(parsed: ParsedQuery): string {
   switch (parsed.type) {
-    case 'setNum':   return `set.id:${parsed.setId} number:${parsed.number}`
-    case 'numTotal': return `number:${parsed.number}`
-    case 'set':      return `set.id:${parsed.setId}`
-    case 'number':   return `number:${parsed.number}`
-    case 'name':     return `name:${parsed.name}*`  // prefix wildcard — finds "Charizard ex" when typing "Char"
+    case 'setNum':    return `set.id:${parsed.setId} number:${parsed.number}`
+    case 'numTotal':  return `number:${parsed.number}`
+    case 'set':       return `set.id:${parsed.setId}`
+    case 'number':    return `number:${parsed.number}`
+    case 'promoNum':  return `number:${parsed.rawNumber}`
+    case 'name':      return `name:${parsed.name}*`
   }
 }
 
@@ -123,8 +132,7 @@ export async function searchCards(query: string): Promise<PokemonTcgCard[]> {
     }
   }
 
-  if (parsed.type === 'numTotal') {
-    // Can't narrow by total in TCGdex easily — TCGdex fallback not useful here
+  if (parsed.type === 'numTotal' || parsed.type === 'promoNum') {
     return []
   }
 
