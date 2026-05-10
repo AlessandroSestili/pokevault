@@ -8,32 +8,45 @@ import { searchJapaneseCards } from './api/justtcg'
 import type { JustTcgSearchResult } from './api/justtcg'
 import type { CollectionCard, Language, Source } from '@/types'
 
-export async function syncMarketPricesAction(): Promise<{ updated: number; notFound: number }> {
+
+export async function syncMarketPricesAction(): Promise<{
+  updated: number
+  notFound: number
+  notFoundCards: { name: string; set_code: string; language: string }[]
+}> {
   const supabase = await createClient()
-  const serviceClient = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
 
   const { data: cards } = await supabase.from('cards').select('id, name, set_code, language')
-  if (!cards?.length) return { updated: 0, notFound: 0 }
+  if (!cards?.length) return { updated: 0, notFound: 0, notFoundCards: [] }
 
   const today = new Date().toISOString().slice(0, 10)
   let updated = 0
   let notFound = 0
+  const notFoundCards: { name: string; set_code: string; language: string }[] = []
 
   for (const card of cards) {
-    const price = await lookupMarketPrice(card.name, card.set_code, card.language)
+    let price = await lookupMarketPrice(card.name, card.set_code, card.language)
+    let priceSource = card.language
+
+    // Fallback to EN if native language not found
+    if (price === null && card.language !== 'EN') {
+      price = await lookupMarketPrice(card.name, card.set_code, 'EN')
+      if (price !== null) priceSource = 'EN-fallback'
+    }
+
     if (price !== null) {
       await upsertPriceSnapshot(card.id, today, price)
       updated++
+      console.log(`[sync] ✓ ${card.name} (${card.set_code} / ${priceSource}) → €${price}`)
     } else {
       notFound++
+      notFoundCards.push({ name: card.name, set_code: card.set_code, language: card.language })
+      console.log(`[sync] ✗ ${card.name} (${card.set_code} / ${card.language}) — not found`)
     }
   }
 
   revalidatePath('/')
-  return { updated, notFound }
+  return { updated, notFound, notFoundCards }
 }
 
 export async function searchJapaneseCardsAction(query: string): Promise<JustTcgSearchResult[]> {
@@ -58,24 +71,43 @@ export async function uploadCardImageAction(formData: FormData): Promise<string 
   return data.publicUrl
 }
 
+const IT_TO_EN_CARD_NAMES: Record<string, string> = {
+  'Voltorb di Hisui': 'Hisuian Voltorb',
+  'Spidops del Team Rocket': "Team Rocket's Spidops",
+}
+
+function cleanCardName(name: string): string {
+  return name
+    .trim()
+    .replace(/\s*-\s*\d+\/\d+$/, '')  // strip " - 077/073" suffixes
+    .replace(/\s*-\s*$/, '')           // strip trailing " -"
+    .trim()
+}
+
+function translateCardName(name: string): string {
+  return IT_TO_EN_CARD_NAMES[name] ?? name
+}
+
 async function lookupMarketPrice(
   name: string,
-  setCode: string | null,
+  _setCode: string | null,
   lang: string
 ): Promise<number | null> {
   const supabase = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
-  let q = supabase
+
+  const cleanName = translateCardName(cleanCardName(name))
+
+  // Match by cleaned name + language (set_code in collection is truncated, unusable for lookup)
+  const { data: cards } = await supabase
     .from('market_cards')
     .select('id')
-    .ilike('name', name)
+    .ilike('name', cleanName)
+    .eq('language', lang.toUpperCase())
     .limit(10)
-  if (setCode) q = q.ilike('set_code', setCode)
-  q = q.eq('language', lang.toUpperCase())
 
-  const { data: cards } = await q
   if (!cards?.length) return null
 
   const { data: prices } = await supabase
