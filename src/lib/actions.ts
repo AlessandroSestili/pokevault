@@ -2,12 +2,39 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from './supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { insertCard, updateCard, deleteCard, upsertPriceSnapshot } from './queries'
-import { fetchCardById } from './api/pokemontcg'
-import { extractMarketPrice } from './api/prices'
-import { fetchJapaneseCardPrice, searchJapaneseCards } from './api/justtcg'
+import { searchJapaneseCards } from './api/justtcg'
 import type { JustTcgSearchResult } from './api/justtcg'
 import type { CollectionCard, Language, Source } from '@/types'
+
+export async function syncMarketPricesAction(): Promise<{ updated: number; notFound: number }> {
+  const supabase = await createClient()
+  const serviceClient = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const { data: cards } = await supabase.from('cards').select('id, name, set_code, language')
+  if (!cards?.length) return { updated: 0, notFound: 0 }
+
+  const today = new Date().toISOString().slice(0, 10)
+  let updated = 0
+  let notFound = 0
+
+  for (const card of cards) {
+    const price = await lookupMarketPrice(card.name, card.set_code, card.language)
+    if (price !== null) {
+      await upsertPriceSnapshot(card.id, today, price)
+      updated++
+    } else {
+      notFound++
+    }
+  }
+
+  revalidatePath('/')
+  return { updated, notFound }
+}
 
 export async function searchJapaneseCardsAction(query: string): Promise<JustTcgSearchResult[]> {
   return searchJapaneseCards(query)
@@ -31,27 +58,50 @@ export async function uploadCardImageAction(formData: FormData): Promise<string 
   return data.publicUrl
 }
 
+async function lookupMarketPrice(
+  name: string,
+  setCode: string | null,
+  lang: string
+): Promise<number | null> {
+  const supabase = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  let q = supabase
+    .from('market_cards')
+    .select('id')
+    .ilike('name', name)
+    .limit(10)
+  if (setCode) q = q.ilike('set_code', setCode)
+  q = q.eq('language', lang.toUpperCase())
+
+  const { data: cards } = await q
+  if (!cards?.length) return null
+
+  const { data: prices } = await supabase
+    .from('market_prices')
+    .select('price_mid')
+    .in('card_id', cards.map(c => c.id))
+    .order('scraped_at', { ascending: false })
+    .limit(1)
+
+  return prices?.[0]?.price_mid ?? null
+}
+
 export async function resolveCardPriceAction(
   cardName: string,
-  apiId: string | null,
+  setCode: string | null,
   language: string
-): Promise<{ price: number | null; source: 'api' | 'jap' | 'en-fallback' | null }> {
-  if (language === 'JP') {
-    const japPrice = await fetchJapaneseCardPrice(cardName)
-    if (japPrice !== null) return { price: japPrice, source: 'jap' }
+): Promise<{ price: number | null; source: 'market' | 'en-fallback' | null }> {
+  const marketPrice = await lookupMarketPrice(cardName, setCode, language)
+  if (marketPrice !== null) return { price: marketPrice, source: 'market' }
 
-    // Fallback to EN price from pokemontcg.io
-    if (apiId) {
-      const tcgCard = await fetchCardById(apiId)
-      const enPrice = tcgCard
-        ? (extractMarketPrice(tcgCard, 'cardmarket') ?? extractMarketPrice(tcgCard, 'tcgplayer') ?? null)
-        : null
-      if (enPrice !== null) return { price: enPrice, source: 'en-fallback' }
-    }
-    return { price: null, source: null }
+  // Fallback: tenta senza filtro lingua per trovare un prezzo EN
+  if (language !== 'EN') {
+    const enPrice = await lookupMarketPrice(cardName, setCode, 'EN')
+    if (enPrice !== null) return { price: enPrice, source: 'en-fallback' }
   }
 
-  // EN / ITA — price already extracted client-side from search result
   return { price: null, source: null }
 }
 

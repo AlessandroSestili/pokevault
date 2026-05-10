@@ -2,12 +2,10 @@
 
 import { useState, useEffect, useTransition, useRef } from 'react'
 import { X, Search, Loader2, Plus, ChevronDown, Camera } from 'lucide-react'
-import type { PokemonTcgCard, Language, Source } from '@/types'
-import type { JustTcgSearchResult } from '@/lib/api/justtcg'
-import { searchCards } from '@/lib/api/pokemontcg'
-import { extractMarketPrice } from '@/lib/api/prices'
-import { fetchJpCardImage } from '@/lib/api/tcgdex'
-import { addCardAction, resolveCardPriceAction, searchJapaneseCardsAction, uploadCardImageAction } from '@/lib/actions'
+import type { Language, Source } from '@/types'
+import type { MarketCard } from '@/lib/api/market'
+import { searchMarketCards } from '@/lib/api/market'
+import { addCardAction, uploadCardImageAction } from '@/lib/actions'
 
 const LANGUAGES: Language[] = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
 const SOURCES: Source[] = ['Cardmarket', 'eBay', 'TCGPlayer', 'Negozio locale', 'Scambio', 'Asta', 'Altro']
@@ -49,60 +47,31 @@ const DEFAULT_FORM = {
 export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [catalog, setCatalog] = useState<'EN' | 'JP'>('EN')
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<PokemonTcgCard[]>([])
-  const [jpResults, setJpResults] = useState<JustTcgSearchResult[]>([])
+  const [results, setResults] = useState<MarketCard[]>([])
   const [visibleCount, setVisibleCount] = useState(PAGE)
   const [searching, setSearching] = useState(false)
-  const [selected, setSelected] = useState<PokemonTcgCard | null>(null)
-  const [selectedJp, setSelectedJp] = useState<JustTcgSearchResult | null>(null)
+  const [selected, setSelected] = useState<MarketCard | null>(null)
   const [form, setForm] = useState({ ...DEFAULT_FORM })
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
-  const [priceSource, setPriceSource] = useState<'api' | 'jap' | 'en-fallback' | null>(null)
-  const [priceLoading, setPriceLoading] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
-  const [jpImages, setJpImages] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dq = useDebounce(query, 400)
 
-  // Reset on close
   useEffect(() => {
     if (!open) {
       setTimeout(() => {
-        setQuery(''); setResults([]); setJpResults([]); setSelected(null); setSelectedJp(null)
+        setQuery(''); setResults([]); setSelected(null)
         setForm({ ...DEFAULT_FORM }); setError(null); setVisibleCount(PAGE)
-        setPriceSource(null); setPriceLoading(false); setImageUploading(false); setCatalog('EN')
+        setImageUploading(false); setCatalog('EN')
       }, 300)
     }
   }, [open])
 
-  // Clear selection and reset language when catalog switches
   useEffect(() => {
-    setSelected(null); setSelectedJp(null)
-    setResults([]); setJpResults([])
-    setQuery(''); setPriceSource(null)
+    setSelected(null); setResults([]); setQuery('')
     setForm(f => ({ ...f, language: catalog === 'JP' ? 'JP' : 'EN', current: '', api_id: null, image_url: null }))
   }, [catalog])
-
-  // EN price re-fetch when language changes (EN catalog only)
-  useEffect(() => {
-    if (selectedJp) return
-    if (!selected) return
-    setPriceLoading(true)
-    if (form.language === 'JP') {
-      resolveCardPriceAction(selected.name, form.api_id, 'JP').then(({ price, source }) => {
-        setForm(f => ({ ...f, current: price ? price.toFixed(2) : '' }))
-        setPriceSource(source)
-        setPriceLoading(false)
-      })
-    } else {
-      const price = extractMarketPrice(selected, 'cardmarket') ?? extractMarketPrice(selected, 'tcgplayer')
-      setForm(f => ({ ...f, current: price ? price.toFixed(2) : '' }))
-      setPriceSource(price ? 'api' : null)
-      setPriceLoading(false)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.language, selected])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -110,85 +79,34 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  // EN search
   useEffect(() => {
-    if (catalog !== 'EN' || !dq.trim() || dq.length < 2) { setResults([]); return }
+    if (!dq.trim() || dq.length < 2) { setResults([]); return }
     setSearching(true)
     setVisibleCount(PAGE)
-    searchCards(dq).then(r => { setResults(r); setSearching(false) })
+    const lang = catalog === 'JP' ? 'JP' : undefined
+    searchMarketCards(dq, lang, 40).then(r => { setResults(r); setSearching(false) })
   }, [catalog, dq])
 
-  // Fetch TCGdex JP image after selecting a JP card
-  useEffect(() => {
-    if (!selectedJp) return
-    fetchJpCardImage(selectedJp.set, selectedJp.number).then(url => {
-      if (url) setForm(f => ({ ...f, image_url: url }))
-    })
-  }, [selectedJp])
-
-  // JP search via JustTCG server action
-  useEffect(() => {
-    if (catalog !== 'JP' || !dq.trim() || dq.length < 2) { setJpResults([]); return }
-    setSearching(true)
-    searchJapaneseCardsAction(dq).then(r => { setJpResults(r); setSearching(false) })
-  }, [catalog, dq])
-
-  // Preload TCGdex images for JP search results
-  useEffect(() => {
-    if (!jpResults.length) { setJpImages({}); return }
-    setJpImages({})
-    jpResults.forEach(card => {
-      fetchJpCardImage(card.set, card.number).then(url => {
-        if (url) setJpImages(prev => ({ ...prev, [card.id]: url }))
-      })
-    })
-  }, [jpResults])
-
-  function selectCard(card: PokemonTcgCard) {
+  function selectCard(card: MarketCard) {
     setError(null)
     setSelected(card)
-    setSelectedJp(null)
     setForm(f => ({
       ...f,
       name: card.name,
-      set_name: card.set.name,
-      card_number: `${card.number}/${card.set.printedTotal}`,
-      element: (card.types?.[0] ?? 'colorless').toLowerCase(),
-      rarity: card.rarity ?? 'Holo Rare',
-      current: '',
-      image_url: card.images?.large ?? card.images?.small ?? null,
+      set_name: card.set_name,
+      card_number: card.number ?? '',
+      rarity: card.rarity ?? f.rarity,
+      current: card.price?.price_mid ? card.price.price_mid.toFixed(2) : '',
+      image_url: card.image_url,
       api_id: card.id,
+      language: (card.language?.toUpperCase() as Language) ?? f.language,
     }))
     setQuery('')
     setResults([])
   }
 
-  function selectJpCard(card: JustTcgSearchResult) {
-    setError(null)
-    setSelectedJp(card)
-    setSelected(null)
-    const cleanSetName = card.set_name.replace(/^[^:]+:\s*/, '')
-    const cleanName = card.name.replace(/\s+\d+\/\d+$/, '').replace(/\s*[-–]+\s*$/, '').trim()
-    setForm(f => ({
-      ...f,
-      name: cleanName,
-      set_name: cleanSetName,
-      card_number: card.number,
-      rarity: card.rarity || f.rarity,
-      current: card.priceEur ? card.priceEur.toFixed(2) : '',
-      image_url: null,
-      api_id: card.id,
-      language: 'JP',
-    }))
-    setPriceSource(card.priceEur ? 'jap' : null)
-    setQuery('')
-    setJpResults([])
-  }
-
   function clearSelected() {
     setSelected(null)
-    setSelectedJp(null)
-    setPriceSource(null)
     setForm(f => ({ ...f, name: '', set_name: '', card_number: '', current: '', image_url: null, api_id: null }))
   }
 
@@ -217,9 +135,8 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     if (isNaN(cond) || cond < 1 || cond > 10) { setError('Grado non valido (1–10)'); return }
     if (isNaN(price) || price <= 0) { setError('Valore obbligatorio (€ > 0)'); return }
 
-    const manualPrice = parseFloat(form.current)
     startTransition(async () => {
-      const manualPriceArg = !isNaN(manualPrice) && manualPrice > 0 ? manualPrice : undefined
+      const manualPrice = !isNaN(price) && price > 0 ? price : undefined
       const id = await addCardAction({
         name: form.name,
         set_id: form.set_name.toLowerCase().replace(/\s+/g, '-') || 'unknown',
@@ -227,7 +144,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
         set_code: (form.set_name || '').toUpperCase().slice(0, 6),
         card_number: form.card_number,
         api_id: form.api_id,
-        api_source: selectedJp ? 'manual' : (selected ? 'pokemontcg' : 'manual'),
+        api_source: 'manual',
         image_url: form.image_url,
         element: form.element || null,
         rarity: form.rarity || null,
@@ -238,7 +155,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
         acquired_date: form.date,
         notes: null,
         is_favorite: false,
-      }, manualPriceArg)
+      }, manualPrice)
       if (id) onClose()
       else setError('Errore durante il salvataggio')
     })
@@ -253,7 +170,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
         <div className="modal__head">
           <div>
             <h3>Aggiungi carta</h3>
-            <p>Cerca una carta o inserisci manualmente i dati.</p>
+            <p>Cerca nel catalogo o inserisci manualmente.</p>
           </div>
           <button className="sheet__close" style={{ marginLeft: 'auto' }} onClick={onClose}><X size={14} /></button>
         </div>
@@ -262,18 +179,10 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
           <div className="modal__body">
             {/* Catalog toggle */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
-              <button
-                type="button"
-                className={'chip' + (catalog === 'EN' ? ' is-active' : '')}
-                onClick={() => setCatalog('EN')}
-              >
+              <button type="button" className={'chip' + (catalog === 'EN' ? ' is-active' : '')} onClick={() => setCatalog('EN')}>
                 EN / IT / DE
               </button>
-              <button
-                type="button"
-                className={'chip' + (catalog === 'JP' ? ' is-active' : '')}
-                onClick={() => setCatalog('JP')}
-              >
+              <button type="button" className={'chip' + (catalog === 'JP' ? ' is-active' : '')} onClick={() => setCatalog('JP')}>
                 JP
               </button>
             </div>
@@ -287,45 +196,38 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                 <input
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  placeholder={catalog === 'JP' ? 'Nome carta JP (es. Charizard V)...' : 'Nome, codice (sv6-012)...'}
+                  placeholder={catalog === 'JP' ? 'Nome carta JP (es. Charizard V)...' : 'Nome carta (es. Charizard)...'}
                   style={{ paddingLeft: 34, paddingRight: searching ? 34 : undefined }}
                 />
               </div>
 
-              {/* EN results dropdown */}
-              {catalog === 'EN' && visible.length > 0 && (
+              {visible.length > 0 && (
                 <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 10, zIndex: 50, maxHeight: 320, overflowY: 'auto', boxShadow: '0 14px 40px rgba(0,0,0,.5)' }}>
-                  {visible.map(card => {
-                    const cardPrice = extractMarketPrice(card, 'cardmarket') ?? extractMarketPrice(card, 'tcgplayer')
-                    return (
-                      <div key={card.id} className="card-search-result" onClick={() => selectCard(card)}>
-                        <div className="card-search-thumb">
-                          {card.images?.small && <img src={card.images.small} alt={card.name} />}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>{card.set.name} · {card.number}</div>
-                          {cardPrice
-                            ? <div style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>~€{cardPrice.toFixed(2)}</div>
-                            : <div style={{ fontSize: 10, color: 'var(--neg)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>nessun prezzo disponibile</div>
-                          }
-                        </div>
+                  {visible.map(card => (
+                    <div key={card.id} className="card-search-result" onClick={() => selectCard(card)}>
+                      <div className="card-search-thumb">
+                        {card.image_url
+                          ? <img src={card.image_url} alt={card.name} />
+                          : <span style={{ fontSize: 18 }}>{catalog === 'JP' ? '🇯🇵' : '🃏'}</span>
+                        }
                       </div>
-                    )
-                  })}
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>
+                          {card.set_name}{card.set_code ? ` (${card.set_code})` : ''}{card.number ? ` · ${card.number}` : ''}{card.rarity ? ` · ${card.rarity}` : ''}
+                        </div>
+                        {card.price?.price_mid
+                          ? <div style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>~€{card.price.price_mid.toFixed(2)}</div>
+                          : <div style={{ fontSize: 10, color: 'var(--neg)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>nessun prezzo disponibile</div>
+                        }
+                      </div>
+                    </div>
+                  ))}
                   {hasMore && (
                     <button
                       type="button"
                       onClick={e => { e.stopPropagation(); setVisibleCount(c => c + PAGE) }}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                        width: '100%', padding: '10px 0',
-                        fontFamily: 'var(--font-jetbrains)', fontSize: 11,
-                        color: 'var(--ink-3)',
-                        borderTop: '1px solid var(--line-2)',
-                        background: 'transparent',
-                        cursor: 'pointer',
-                      }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', padding: '10px 0', fontFamily: 'var(--font-jetbrains)', fontSize: 11, color: 'var(--ink-3)', borderTop: '1px solid var(--line-2)', background: 'transparent', cursor: 'pointer' }}
                     >
                       <ChevronDown size={12} />
                       Carica altri ({results.length - visibleCount} rimasti)
@@ -333,71 +235,24 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                   )}
                 </div>
               )}
-
-              {/* JP results dropdown */}
-              {catalog === 'JP' && jpResults.length > 0 && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 10, zIndex: 50, maxHeight: 320, overflowY: 'auto', boxShadow: '0 14px 40px rgba(0,0,0,.5)' }}>
-                  {jpResults.map(card => (
-                    <div key={card.id} className="card-search-result" onClick={() => selectJpCard(card)}>
-                      <div className="card-search-thumb">
-                        {jpImages[card.id]
-                          ? <img src={jpImages[card.id]} alt={card.name} />
-                          : <span style={{ fontSize: 18 }}>🇯🇵</span>
-                        }
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name.replace(/\s+\d+\/\d+$/, '').replace(/\s*[-–]+\s*$/, '').trim()}</div>
-                        <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>
-                          {(() => {
-                            const setCode = card.set_name.match(/^([^:]+):/)?.[1]
-                            const setName = card.set_name.replace(/^[^:]+:\s*/, '')
-                            return `${setName}${setCode ? ` (${setCode})` : ''}${card.number ? ` · ${card.number}` : ''}${card.rarity ? ` · ${card.rarity}` : ''}`
-                          })()}
-                        </div>
-                        {card.priceEur
-                          ? <div style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>~€{card.priceEur.toFixed(2)}</div>
-                          : <div style={{ fontSize: 10, color: 'var(--neg)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>nessun prezzo disponibile</div>
-                        }
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
-            {/* Card preview + image upload — always visible when card selected */}
-            {(selected || selectedJp) && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 14,
-                padding: '12px 14px',
-                background: 'var(--bg-1)',
-                border: '1px solid var(--line-2)',
-                borderRadius: 10,
-              }}>
-                {/* Image area — click to upload */}
+            {/* Card preview */}
+            {selected && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 14px', background: 'var(--bg-1)', border: '1px solid var(--line-2)', borderRadius: 10 }}>
                 <div
-                  role="button"
-                  tabIndex={0}
+                  role="button" tabIndex={0}
                   onClick={() => fileInputRef.current?.click()}
                   onKeyDown={e => e.key === 'Enter' && fileInputRef.current?.click()}
                   title="Carica foto"
-                  style={{
-                    width: 54, height: 76, flexShrink: 0, borderRadius: 6,
-                    overflow: 'hidden', position: 'relative', cursor: 'pointer',
-                    background: 'var(--bg-2)', border: '1px solid var(--line-2)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
+                  style={{ width: 54, height: 76, flexShrink: 0, borderRadius: 6, overflow: 'hidden', position: 'relative', cursor: 'pointer', background: 'var(--bg-2)', border: '1px solid var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   {imageUploading ? (
                     <Loader2 size={18} style={{ color: 'var(--ink-3)', animation: 'spin 1s linear infinite' }} />
                   ) : form.image_url ? (
                     <>
                       <img src={form.image_url} alt={form.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                      <div style={{
-                        position: 'absolute', inset: 0, background: 'rgba(0,0,0,.45)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        opacity: 0, transition: 'opacity .15s',
-                      }}
+                      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity .15s' }}
                         onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
                         onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
                       >
@@ -409,17 +264,12 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                   )}
                 </div>
                 <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
-
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, color: 'var(--ink-0)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.name}</div>
                   <div style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 11, color: 'var(--ink-3)', marginTop: 3 }}>{form.set_name}{form.card_number ? ` · ${form.card_number}` : ''}</div>
                   {form.rarity && <div style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 10, color: 'var(--ink-3)', marginTop: 2 }}>{form.rarity}</div>}
                 </div>
-                <button
-                  type="button"
-                  onClick={clearSelected}
-                  style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 11, color: 'var(--ink-3)', flexShrink: 0, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--line-2)', background: 'transparent', cursor: 'pointer' }}
-                >
+                <button type="button" onClick={clearSelected} style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 11, color: 'var(--ink-3)', flexShrink: 0, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--line-2)', background: 'transparent', cursor: 'pointer' }}>
                   Cambia
                 </button>
               </div>
@@ -430,30 +280,22 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
               <input value={form.name} onChange={e => upd('name', e.target.value)} placeholder="es. Charizard" required />
             </div>
 
-            {/* Manual image upload when no card selected from search */}
-            {!selected && !selectedJp && (
+            {/* Manual image upload when no card selected */}
+            {!selected && (
               <div className="field">
                 <label>Foto carta</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {form.image_url
-                    ? <img src={form.image_url} alt="carta" style={{ width: 48, height: 68, objectFit: 'contain', borderRadius: 6, border: '1px solid var(--line-2)' }} />
-                    : null
-                  }
+                  {form.image_url && <img src={form.image_url} alt="carta" style={{ width: 48, height: 68, objectFit: 'contain', borderRadius: 6, border: '1px solid var(--line-2)' }} />}
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={imageUploading}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      padding: '7px 12px', borderRadius: 8, border: '1px solid var(--line-2)',
-                      background: 'transparent', cursor: 'pointer',
-                      fontFamily: 'var(--font-jetbrains)', fontSize: 12, color: 'var(--ink-2)',
-                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-jetbrains)', fontSize: 12, color: 'var(--ink-2)' }}
                   >
                     {imageUploading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Camera size={13} />}
                     {form.image_url ? 'Cambia foto' : 'Carica foto'}
                   </button>
-                  {!selected && !selectedJp && <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />}
+                  <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
                 </div>
               </div>
             )}
@@ -473,13 +315,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
               <label>Elemento</label>
               <div className="elem-picker">
                 {ELEMENTS.map(el => (
-                  <button
-                    key={el.key}
-                    type="button"
-                    className={form.element === el.key ? 'is-active' : ''}
-                    style={{ '--art-a': el.color } as React.CSSProperties}
-                    onClick={() => upd('element', el.key)}
-                  >
+                  <button key={el.key} type="button" className={form.element === el.key ? 'is-active' : ''} style={{ '--art-a': el.color } as React.CSSProperties} onClick={() => upd('element', el.key)}>
                     <span className="glyph">{el.glyph}</span>
                     <span>{el.label}</span>
                   </button>
@@ -522,21 +358,15 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
             <div className="field">
               <label>
                 Valore corrente (€)
-                {priceLoading && <span style={{ color: 'var(--ink-3)', marginLeft: 6, fontSize: 10 }}>· carico...</span>}
-                {!priceLoading && priceSource === 'api' && <span style={{ color: 'var(--pos)', marginLeft: 6, fontSize: 10 }}>· da API</span>}
-                {!priceLoading && priceSource === 'jap' && <span style={{ color: 'var(--pos)', marginLeft: 6, fontSize: 10 }}>· JAP API</span>}
-                {!priceLoading && priceSource === 'en-fallback' && <span style={{ color: 'var(--lightning, #FFCB2E)', marginLeft: 6, fontSize: 10 }}>· EN fallback</span>}
-                {!priceLoading && (selected || selectedJp) && !priceSource && !form.current && <span style={{ color: 'var(--lightning, #FFCB2E)', marginLeft: 6, fontSize: 10 }}>· inserisci manualmente</span>}
+                {selected && form.current && <span style={{ color: 'var(--pos)', marginLeft: 6, fontSize: 10 }}>· da CardTrader</span>}
+                {selected && !form.current && <span style={{ color: 'var(--lightning, #FFCB2E)', marginLeft: 6, fontSize: 10 }}>· inserisci manualmente</span>}
               </label>
               <input
-                type="number"
-                step="0.01"
-                min="0"
+                type="number" step="0.01" min="0"
                 value={form.current}
                 onChange={e => upd('current', e.target.value)}
                 placeholder="es. 12.50"
-                disabled={priceLoading}
-                style={(selected || selectedJp) && !form.current && !priceLoading ? { borderColor: '#FFCB2E' } : undefined}
+                style={selected && !form.current ? { borderColor: '#FFCB2E' } : undefined}
               />
             </div>
 
