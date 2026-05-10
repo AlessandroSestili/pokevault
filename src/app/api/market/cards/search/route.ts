@@ -14,8 +14,6 @@ export async function GET(req: NextRequest) {
 
   if (!q || q.length < 2) return NextResponse.json([])
 
-  const looksLikeNumber = /^[\d\/]+$/.test(q)
-
   let query = supabase
     .from('market_cards')
     .select(`
@@ -29,10 +27,7 @@ export async function GET(req: NextRequest) {
       image_url,
       cardtrader_blueprint_id
     `)
-    .or(looksLikeNumber
-      ? `number.ilike.%${q}%`
-      : `name.ilike.%${q}%,number.ilike.%${q}%`
-    )
+    .ilike('name', `%${q}%`)
     .limit(limit)
 
   if (lang) query = query.eq('language', lang)
