@@ -35,7 +35,6 @@ const DEFAULT_FORM = {
   rarity: 'Holo Rare',
   condition: '9.5',
   language: 'EN' as Language,
-  cost: '',
   current: '',
   source: 'Cardmarket' as Source,
   date: new Date().toISOString().slice(0, 10),
@@ -84,7 +83,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
       card_number: `${card.number}/${card.set.printedTotal}`,
       element: (card.types?.[0] ?? 'colorless').toLowerCase(),
       rarity: card.rarity ?? 'Holo Rare',
-      cost: price ? price.toFixed(2) : f.cost,
+      current: price ? price.toFixed(2) : f.current,
       image_url: card.images?.large ?? card.images?.small ?? null,
       api_id: card.id,
     }))
@@ -100,10 +99,8 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     e.preventDefault()
     setError(null)
     const cond = parseFloat(form.condition)
-    const cost = parseFloat(form.cost)
     if (!form.name.trim()) { setError('Nome obbligatorio'); return }
     if (isNaN(cond) || cond < 1 || cond > 10) { setError('Grado non valido (1–10)'); return }
-    if (isNaN(cost) || cost < 0) { setError('Costo non valido'); return }
 
     startTransition(async () => {
       const id = await addCardAction({
@@ -119,7 +116,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
         rarity: form.rarity || null,
         language: form.language,
         condition: cond,
-        cost_basis: cost,
+        cost_basis: 0,
         source: form.source,
         acquired_date: form.date,
         notes: null,
@@ -226,17 +223,6 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                 <select value={form.language} onChange={e => upd('language', e.target.value as Language)}>
                   {LANGUAGES.map(l => <option key={l}>{l}</option>)}
                 </select>
-              </div>
-            </div>
-
-            <div className="field-row">
-              <div className="field">
-                <label>Costo ($)</label>
-                <input type="number" min="0" step="0.01" value={form.cost} onChange={e => upd('cost', e.target.value)} placeholder="0.00" />
-              </div>
-              <div className="field">
-                <label>Valore attuale</label>
-                <input type="number" min="0" step="0.01" value={form.current} onChange={e => upd('current', e.target.value)} placeholder="0.00" />
               </div>
             </div>
 

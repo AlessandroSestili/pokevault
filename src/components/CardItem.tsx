@@ -77,9 +77,6 @@ export function CardItem({
 
         <div className="card__hover">
           <div className="card__hover-row">
-            <span>Costo</span><span>{fmtMoney(card.cost_basis)}</span>
-          </div>
-          <div className="card__hover-row">
             <span>Grado</span><span>{card.condition}</span>
           </div>
           <div className="card__hover-row">

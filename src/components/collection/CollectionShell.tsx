@@ -81,8 +81,8 @@ export function CollectionShell({ cards: allCards }: { cards: CollectionCardWith
               Aggiungi
             </button>
 
-            {(['value', 'recent', 'alpha', 'pl', 'cost'] as SortKey[]).map((key) => {
-              const labels: Record<string, string> = { value: 'Valore', recent: 'Recenti', alpha: 'A–Z', pl: 'P&L', cost: 'Costo' }
+            {(['value', 'recent', 'alpha', 'mover'] as SortKey[]).map((key) => {
+              const labels: Record<string, string> = { value: 'Valore', recent: 'Recenti', alpha: 'A–Z', mover: 'Top mover' }
               const active = sort === key
               return (
                 <button

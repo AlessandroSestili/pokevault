@@ -162,7 +162,6 @@ export function CollectionPage({
             <div>Elemento</div>
             <div>Rarità</div>
             <div>Grado</div>
-            <div style={{ textAlign: 'right' }}>Costo</div>
             <div style={{ textAlign: 'right' }}>Valore</div>
             <div style={{ textAlign: 'right' }}>P&L</div>
             <div></div>

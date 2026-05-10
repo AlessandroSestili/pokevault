@@ -4,13 +4,13 @@ import { useState, useEffect, useTransition } from 'react'
 import { X, Upload, FileText, Check } from 'lucide-react'
 import { importCardsAction } from '@/lib/actions'
 
-const HEADERS = ['nome', 'set_name', 'numero', 'costo', 'lingua', 'fonte', 'data']
+const HEADERS = ['nome', 'set_name', 'numero', 'lingua', 'fonte', 'data']
 const SAMPLE = [
-  { nome: 'Charizard', set_name: 'Base Set', numero: '4/102', costo: '150.00', lingua: 'EN', fonte: 'eBay', data: '2025-01-15' },
-  { nome: 'Pikachu', set_name: 'Jungle', numero: '60/64', costo: '22.00', lingua: 'EN', fonte: 'Cardmarket', data: '2025-03-10' },
-  { nome: 'Mewtwo', set_name: 'Base Set', numero: '10/102', costo: '85.00', lingua: 'JP', fonte: 'Asta', data: '2025-06-22' },
-  { nome: 'Blastoise', set_name: 'Base Set', numero: '2/102', costo: '120.00', lingua: 'EN', fonte: 'Cardmarket', data: '2025-08-04' },
-  { nome: 'Venusaur', set_name: 'Base Set', numero: '15/102', costo: '95.00', lingua: 'EN', fonte: 'Scambio', data: '2025-09-18' },
+  { nome: 'Charizard', set_name: 'Base Set', numero: '4/102', lingua: 'EN', fonte: 'eBay', data: '2025-01-15' },
+  { nome: 'Pikachu', set_name: 'Jungle', numero: '60/64', lingua: 'EN', fonte: 'Cardmarket', data: '2025-03-10' },
+  { nome: 'Mewtwo', set_name: 'Base Set', numero: '10/102', lingua: 'JP', fonte: 'Asta', data: '2025-06-22' },
+  { nome: 'Blastoise', set_name: 'Base Set', numero: '2/102', lingua: 'EN', fonte: 'Cardmarket', data: '2025-08-04' },
+  { nome: 'Venusaur', set_name: 'Base Set', numero: '15/102', lingua: 'EN', fonte: 'Scambio', data: '2025-09-18' },
 ]
 
 function downloadTemplate() {
@@ -84,7 +84,6 @@ export function ImportCsvModal({ open, onClose }: { open: boolean; onClose: () =
         set_name: r['set_name'] ?? '',
         card_number: r['numero'] ?? r['card_number'] ?? '',
         condition: r['condition'] ?? '7',
-        cost: r['costo'] ?? r['cost'] ?? '0',
         language: r['lingua'] ?? r['language'] ?? 'EN',
         source: r['fonte'] ?? r['source'] ?? 'Altro',
         acquired_date: r['data'] ?? r['acquired_date'] ?? '',
@@ -174,8 +173,8 @@ export function ImportCsvModal({ open, onClose }: { open: boolean; onClose: () =
                 {file.rows.slice(0, 5).map((r, i) => (
                   <div key={i} className="simple-prev__row">
                     {HEADERS.map(h => (
-                      <div key={h} className={['costo', 'data', 'numero'].includes(h) ? 'mono' : ''}>
-                        {r[h] ?? r[h === 'nome' ? 'name' : h === 'numero' ? 'card_number' : h === 'costo' ? 'cost' : h === 'lingua' ? 'language' : h === 'fonte' ? 'source' : h === 'data' ? 'acquired_date' : h] ?? '—'}
+                      <div key={h} className={['data', 'numero'].includes(h) ? 'mono' : ''}>
+                        {r[h] ?? r[h === 'nome' ? 'name' : h === 'numero' ? 'card_number' : h === 'lingua' ? 'language' : h === 'fonte' ? 'source' : h === 'data' ? 'acquired_date' : h] ?? '—'}
                       </div>
                     ))}
                   </div>

@@ -104,7 +104,6 @@ export function AddCardModal({
 
   // Form state
   const [condition, setCondition] = useState('8')
-  const [cost, setCost] = useState('')
   const [language, setLanguage] = useState<Language>('EN')
   const [source, setSource] = useState<Source>('Cardmarket')
   const [acquiredDate, setAcquiredDate] = useState(new Date().toISOString().slice(0, 10))
@@ -141,7 +140,6 @@ export function AddCardModal({
     setResults([])
     setSelected(null)
     setCondition('8')
-    setCost('')
     setLanguage('EN')
     setSource('Cardmarket')
     setNotes('')
@@ -158,8 +156,6 @@ export function AddCardModal({
 
   function selectCard(card: PokemonTcgCard) {
     setSelected(card)
-    const price = extractMarketPrice(card, 'cardmarket') ?? extractMarketPrice(card, 'tcgplayer')
-    if (price) setCost(price.toFixed(2))
     setStep('form')
   }
 
@@ -169,13 +165,8 @@ export function AddCardModal({
     setError(null)
 
     const conditionNum = parseFloat(condition)
-    const costNum = parseFloat(cost)
     if (isNaN(conditionNum) || conditionNum < 1 || conditionNum > 10) {
       setError('Condizione non valida (1–10)')
-      return
-    }
-    if (isNaN(costNum) || costNum < 0) {
-      setError('Costo non valido')
       return
     }
 
@@ -193,7 +184,7 @@ export function AddCardModal({
         rarity: selected.rarity ?? null,
         language,
         condition: conditionNum,
-        cost_basis: costNum,
+        cost_basis: 0,
         source,
         acquired_date: acquiredDate,
         notes: notes.trim() || null,
@@ -273,14 +264,9 @@ export function AddCardModal({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <InputField label="Condizione (PSA)">
-              <input type="number" min="1" max="10" step="0.5" value={condition} onChange={e => setCondition(e.target.value)} style={inputStyle} required />
-            </InputField>
-            <InputField label="Costo (€)">
-              <input type="number" min="0" step="0.01" value={cost} onChange={e => setCost(e.target.value)} placeholder="0.00" style={inputStyle} required />
-            </InputField>
-          </div>
+          <InputField label="Condizione (PSA)">
+            <input type="number" min="1" max="10" step="0.5" value={condition} onChange={e => setCondition(e.target.value)} style={inputStyle} required />
+          </InputField>
 
           <InputField label="Lingua">
             <select value={language} onChange={e => setLanguage(e.target.value as Language)} style={inputStyle}>

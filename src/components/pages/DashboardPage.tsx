@@ -25,7 +25,7 @@ function getDashboardChart(cards: CollectionCardWithPrice[], n: number): number[
   for (const card of cards) {
     const history = card.price_history
     if (history.length === 0) {
-      const val = card.market_price ?? card.cost_basis
+      const val = card.market_price ?? 0
       dayValues.forEach((_, i) => { dayValues[i] += val })
     } else {
       const last = history.slice(-n)
@@ -53,15 +53,12 @@ export function DashboardPage({
   const [range, setRange] = useState<Range>('30g')
 
   const totals = useMemo(() => {
-    const value = cards.reduce((s, c) => s + (c.market_price ?? c.cost_basis), 0)
-    const cost = cards.reduce((s, c) => s + c.cost_basis, 0)
-    const pl = value - cost
-    const pct = cost > 0 ? (pl / cost) * 100 : 0
+    const value = cards.reduce((s, c) => s + (c.market_price ?? 0), 0)
     const values30 = getDashboardChart(cards, 30)
     const dayPl = values30.length >= 2 && values30[0] > 0
       ? ((values30[29] - values30[0]) / values30[0]) * 100
       : 0
-    return { value, cost, pl, pct, dayPl }
+    return { value, dayPl }
   }, [cards])
 
   const chartValues = useMemo(() => {
@@ -130,14 +127,14 @@ export function DashboardPage({
         <div className="stats">
           <div className="stat">
             <div className="stat__label">
-              P&L Totale
+              Var. 30 giorni
               <TrendingUp size={12} />
             </div>
-            <div className="stat__value" style={{ color: totals.pl >= 0 ? 'var(--pos)' : 'var(--neg)' }}>
-              {(totals.pl >= 0 ? '+' : '−') + fmtMoney(Math.abs(totals.pl))}
+            <div className="stat__value" style={{ color: totals.dayPl >= 0 ? 'var(--pos)' : 'var(--neg)' }}>
+              {totals.dayPl >= 0 ? '▲' : '▼'} {fmtPct(totals.dayPl)}
             </div>
-            <div className={'stat__sub ' + (totals.pl >= 0 ? 'pos' : 'neg')}>
-              {fmtPct(totals.pct)} ROI · costo {fmtMoney(totals.cost)}
+            <div className={'stat__sub ' + (totals.dayPl >= 0 ? 'pos' : 'neg')}>
+              rispetto a 30 giorni fa
             </div>
           </div>
 

@@ -60,7 +60,6 @@ export function CardDetailSheet({
   const [isPending, startTransition] = useTransition()
   const [editing, setEditing] = useState(false)
   const [condition, setCondition] = useState('')
-  const [cost, setCost] = useState('')
   const [language, setLanguage] = useState<Language>('EN')
   const [source, setSource] = useState<Source>('Cardmarket')
   const [acquiredDate, setAcquiredDate] = useState('')
@@ -69,14 +68,11 @@ export function CardDetailSheet({
 
   if (!card) return null
 
-  const pl = (card.market_price ?? 0) - card.cost_basis
-  const plPct = card.cost_basis > 0 ? (pl / card.cost_basis) * 100 : 0
-  const plPositive = pl >= 0
   const sparkData = card.price_history.map(p => p.price_eur)
+  const sparkPositive = sparkData.length >= 2 ? sparkData[sparkData.length - 1] >= sparkData[0] : true
 
   function openEdit() {
     setCondition(String(card!.condition))
-    setCost(String(card!.cost_basis))
     setLanguage(card!.language as Language)
     setSource(card!.source as Source)
     setAcquiredDate(card!.acquired_date)
@@ -103,20 +99,14 @@ export function CardDetailSheet({
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
     const conditionNum = parseFloat(condition)
-    const costNum = parseFloat(cost)
     if (isNaN(conditionNum) || conditionNum < 1 || conditionNum > 10) {
       setError('Condizione non valida (1–10)')
-      return
-    }
-    if (isNaN(costNum) || costNum < 0) {
-      setError('Costo non valido')
       return
     }
     const id = card!.id
     startTransition(async () => {
       const ok = await editCardAction(id, {
         condition: conditionNum,
-        cost_basis: costNum,
         language,
         source,
         acquired_date: acquiredDate,
@@ -153,22 +143,13 @@ export function CardDetailSheet({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <InputField label="Condizione (PSA)">
-              <input
-                type="number" min="1" max="10" step="0.5"
-                value={condition} onChange={e => setCondition(e.target.value)}
-                style={inputStyle} required
-              />
-            </InputField>
-            <InputField label="Costo (€)">
-              <input
-                type="number" min="0" step="0.01"
-                value={cost} onChange={e => setCost(e.target.value)}
-                style={inputStyle} required
-              />
-            </InputField>
-          </div>
+          <InputField label="Condizione (PSA)">
+            <input
+              type="number" min="1" max="10" step="0.5"
+              value={condition} onChange={e => setCondition(e.target.value)}
+              style={inputStyle} required
+            />
+          </InputField>
 
           <InputField label="Lingua">
             <select value={language} onChange={e => setLanguage(e.target.value as Language)} style={inputStyle}>
@@ -256,25 +237,13 @@ export function CardDetailSheet({
                   {card.market_price != null ? formatEur(card.market_price) : '—'}
                 </p>
               </div>
-              {card.market_price != null && (
-                <div
-                  className="px-2.5 py-1 rounded-full font-mono text-[12px] font-medium"
-                  style={{
-                    background: plPositive ? 'var(--pos-dim)' : 'var(--neg-dim)',
-                    color: plPositive ? 'var(--pos)' : 'var(--neg)',
-                  }}
-                >
-                  {plPositive ? '+' : ''}{formatPct(plPct)} · {plPositive ? '+' : ''}{formatEur(pl)}
-                </div>
-              )}
             </div>
             {sparkData.length >= 2 && (
-              <Sparkline data={sparkData} color={plPositive ? 'var(--pos)' : 'var(--neg)'} height={40} />
+              <Sparkline data={sparkData} color={sparkPositive ? 'var(--pos)' : 'var(--neg)'} height={40} />
             )}
           </div>
 
           <div className="mb-5">
-            <Row label="Costo" value={formatEur(card.cost_basis)} />
             <Row label="Condizione" value={formatCondition(card.condition)} />
             <Row label="Lingua" value={card.language} />
             {card.rarity && <Row label="Rarità" value={card.rarity} />}

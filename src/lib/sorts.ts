@@ -26,12 +26,6 @@ export function sortCards(
         return change(b) - change(a);
       }
 
-      case "pl":
-        return (b.market_price ?? 0) - b.cost_basis - ((a.market_price ?? 0) - a.cost_basis);
-
-      case "cost":
-        return b.cost_basis - a.cost_basis;
-
       default:
         return 0;
     }

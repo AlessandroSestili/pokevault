@@ -131,7 +131,7 @@ export interface CardFilters {
   maxValue: number | null;
 }
 
-export type SortKey = "value" | "recent" | "mover" | "alpha" | "pl" | "cost";
+export type SortKey = "value" | "recent" | "mover" | "alpha";
 
 export interface PortfolioTotals {
   totalValue: number;    // sum of market prices

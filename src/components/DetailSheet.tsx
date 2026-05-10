@@ -104,11 +104,6 @@ export function DetailSheet({
               <h2>{card.name}</h2>
               <div className="sub">{card.set_name} · {card.card_number}</div>
               <div className="sheet__bigprice">{fmtMoney(card.market_price)}</div>
-              <div className={'sheet__pl ' + (pl >= 0 ? 'pos' : 'neg')}>
-                <span className="amt">{(pl >= 0 ? '+' : '−') + fmtMoney(Math.abs(pl))}</span>
-                <span className="amt">({fmtPct(plPct)})</span>
-                <span style={{ color: 'var(--ink-3)', fontSize: 11 }}>vs. costo</span>
-              </div>
             </div>
           </div>
 
@@ -137,7 +132,6 @@ export function DetailSheet({
             <div className="spec"><div className="spec__label">Lingua</div><div className="spec__value">{card.language}</div></div>
             <div className="spec"><div className="spec__label">Acquisita</div><div className="spec__value">{fmtDate(card.acquired_date)}</div></div>
             <div className="spec"><div className="spec__label">Provenienza</div><div className="spec__value">{card.source}</div></div>
-            <div className="spec"><div className="spec__label">Costo</div><div className="spec__value">{fmtMoney(card.cost_basis)}</div></div>
           </div>
 
           {card.notes && (

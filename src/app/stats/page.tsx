@@ -46,7 +46,7 @@ export default async function StatsPage() {
     const key = card.element ?? 'Senza tipo'
     if (!byElement[key]) byElement[key] = { count: 0, value: 0 }
     byElement[key].count++
-    byElement[key].value += card.market_price ?? card.cost_basis
+    byElement[key].value += card.market_price ?? 0
   }
   const elementRows = Object.entries(byElement)
     .sort((a, b) => b[1].value - a[1].value)
@@ -59,7 +59,7 @@ export default async function StatsPage() {
     const key = card.set_name
     if (!bySet[key]) bySet[key] = { count: 0, value: 0 }
     bySet[key].count++
-    bySet[key].value += card.market_price ?? card.cost_basis
+    bySet[key].value += card.market_price ?? 0
   }
   const setRows = Object.entries(bySet)
     .sort((a, b) => b[1].value - a[1].value)
@@ -71,8 +71,6 @@ export default async function StatsPage() {
     .sort((a, b) => (b.market_price ?? 0) - (a.market_price ?? 0))
     .slice(0, 5)
 
-  const plPositive = totals.totalPl >= 0
-
   return (
     <div className="flex flex-col min-h-screen">
       <Topbar pathname="/stats" />
@@ -81,13 +79,9 @@ export default async function StatsPage() {
         {/* Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard label="Valore totale" value={formatEur(totals.totalValue)} />
-          <StatCard
-            label="P&L"
-            value={`${plPositive ? '+' : ''}${formatEur(totals.totalPl)}`}
-            sub={`${plPositive ? '+' : ''}${totals.plPercent.toFixed(2)}%`}
-          />
           <StatCard label="Carte" value={String(totals.cardCount)} />
-          <StatCard label="Costo totale" value={formatEur(totals.totalCost)} />
+          <StatCard label="Preferite" value={String(totals.favoriteCount)} />
+          <StatCard label="Grado 9.5+" value={String(totals.topGradeCount)} />
         </div>
 
         {cards.length === 0 ? (
@@ -137,27 +131,18 @@ export default async function StatsPage() {
             {topCards.length > 0 && (
               <div className="glass rounded-2xl p-5 space-y-3">
                 <p className="font-mono text-[10px] tracking-[1.5px] uppercase mb-4" style={{ color: 'var(--text-2)' }}>Top carte per valore</p>
-                {topCards.map((card, i) => {
-                  const pl = (card.market_price ?? 0) - card.cost_basis
-                  const plPos = pl >= 0
-                  return (
-                    <div key={card.id} className="flex items-center gap-3 py-2 border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
-                      <span className="font-mono text-[12px] w-5 text-right flex-shrink-0" style={{ color: 'var(--text-2)' }}>{i + 1}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-display font-medium text-[14px] truncate" style={{ color: 'var(--text-0)' }}>{card.name}</p>
-                        <p className="font-mono text-[11px]" style={{ color: 'var(--text-2)' }}>{card.set_name}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="font-mono text-[13px]" style={{ color: 'var(--text-0)' }}>
-                          {card.market_price != null ? formatEur(card.market_price) : '—'}
-                        </p>
-                        <p className="font-mono text-[11px]" style={{ color: plPos ? 'var(--pos)' : 'var(--neg)' }}>
-                          {plPos ? '+' : ''}{formatEur(pl)}
-                        </p>
-                      </div>
+                {topCards.map((card, i) => (
+                  <div key={card.id} className="flex items-center gap-3 py-2 border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
+                    <span className="font-mono text-[12px] w-5 text-right flex-shrink-0" style={{ color: 'var(--text-2)' }}>{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-display font-medium text-[14px] truncate" style={{ color: 'var(--text-0)' }}>{card.name}</p>
+                      <p className="font-mono text-[11px]" style={{ color: 'var(--text-2)' }}>{card.set_name}</p>
                     </div>
-                  )
-                })}
+                    <p className="font-mono text-[13px] flex-shrink-0" style={{ color: 'var(--text-0)' }}>
+                      {card.market_price != null ? formatEur(card.market_price) : '—'}
+                    </p>
+                  </div>
+                ))}
               </div>
             )}
           </>
