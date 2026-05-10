@@ -14,6 +14,8 @@ export async function GET(req: NextRequest) {
 
   if (!q || q.length < 2) return NextResponse.json([])
 
+  // "sv5k-075" → set_code=sv5k, number starts with 075
+  const setNumMatch = q.match(/^([a-zA-Z][a-zA-Z0-9]{1,11})-(\d{1,4})$/i)
   const looksLikeNumber = /^\d/.test(q)
 
   let query = supabase
@@ -29,11 +31,15 @@ export async function GET(req: NextRequest) {
       image_url,
       cardtrader_blueprint_id
     `)
-    .or(looksLikeNumber
-      ? `number.ilike.%${q}%`
-      : `name.ilike.%${q}%,number.ilike.%${q}%`
-    )
     .limit(limit)
+
+  if (setNumMatch) {
+    query = query.ilike('set_code', setNumMatch[1]).ilike('number', `${setNumMatch[2]}%`)
+  } else if (looksLikeNumber) {
+    query = query.ilike('number', `%${q}%`)
+  } else {
+    query = query.or(`name.ilike.%${q}%,number.ilike.%${q}%`)
+  }
 
   if (lang) query = query.eq('language', lang)
 
