@@ -2,26 +2,10 @@
 
 import { useState, useEffect, useTransition, useRef } from 'react'
 import { X, Search, Loader2, Plus, ChevronDown, Camera } from 'lucide-react'
-import type { Language, Source, PokemonTcgCard } from '@/types'
+import type { Language, Source } from '@/types'
 import type { MarketCard } from '@/lib/api/market'
 import { searchMarketCards } from '@/lib/api/market'
-import { searchCards } from '@/lib/api/pokemontcg'
 import { addCardAction, uploadCardImageAction } from '@/lib/actions'
-
-function ptcgToMarketCard(c: PokemonTcgCard): MarketCard {
-  return {
-    id: c.id,
-    name: c.name,
-    set_name: c.set.name,
-    set_code: c.set.id.toUpperCase(),
-    number: c.number,
-    rarity: c.rarity ?? null,
-    language: 'EN',
-    image_url: c.images?.small ?? null,
-    cardtrader_blueprint_id: null,
-    price: null,
-  }
-}
 
 const LANGUAGES: Language[] = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
 const SOURCES: Source[] = ['Cardmarket', 'eBay', 'TCGPlayer', 'Negozio locale', 'Scambio', 'Asta', 'Altro']
@@ -93,12 +77,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     if (!dq.trim() || dq.length < 2) { setResults([]); return }
     setSearching(true)
     setVisibleCount(PAGE)
-    searchMarketCards(dq, undefined, 40).then(async r => {
-      if (r.length > 0) { setResults(r); setSearching(false); return }
-      const ptcg = await searchCards(dq)
-      setResults(ptcg.map(ptcgToMarketCard))
-      setSearching(false)
-    })
+    searchMarketCards(dq, undefined, 40).then(r => { setResults(r); setSearching(false) })
   }, [dq])
 
   function selectCard(card: MarketCard) {
