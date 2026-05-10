@@ -12,6 +12,24 @@ export async function searchJapaneseCardsAction(query: string): Promise<JustTcgS
   return searchJapaneseCards(query)
 }
 
+export async function uploadCardImageAction(formData: FormData): Promise<string | null> {
+  const file = formData.get('file') as File | null
+  if (!file || file.size === 0) return null
+
+  const supabase = await createClient()
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+  const { error } = await supabase.storage
+    .from('card-images')
+    .upload(path, file, { contentType: file.type, upsert: false })
+
+  if (error) { console.error('[uploadCardImage]', error); return null }
+
+  const { data } = supabase.storage.from('card-images').getPublicUrl(path)
+  return data.publicUrl
+}
+
 export async function resolveCardPriceAction(
   cardName: string,
   apiId: string | null,

@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
-import { X, Search, Loader2, Plus, ChevronDown } from 'lucide-react'
+import { useState, useEffect, useTransition, useRef } from 'react'
+import { X, Search, Loader2, Plus, ChevronDown, Camera } from 'lucide-react'
 import type { PokemonTcgCard, Language, Source } from '@/types'
 import type { JustTcgSearchResult } from '@/lib/api/justtcg'
 import { searchCards } from '@/lib/api/pokemontcg'
 import { extractMarketPrice } from '@/lib/api/prices'
 import { fetchJpCardImage } from '@/lib/api/tcgdex'
-import { addCardAction, resolveCardPriceAction, searchJapaneseCardsAction } from '@/lib/actions'
+import { addCardAction, resolveCardPriceAction, searchJapaneseCardsAction, uploadCardImageAction } from '@/lib/actions'
 
 const LANGUAGES: Language[] = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
 const SOURCES: Source[] = ['Cardmarket', 'eBay', 'TCGPlayer', 'Negozio locale', 'Scambio', 'Asta', 'Altro']
@@ -60,6 +60,8 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
   const [error, setError] = useState<string | null>(null)
   const [priceSource, setPriceSource] = useState<'api' | 'jap' | 'en-fallback' | null>(null)
   const [priceLoading, setPriceLoading] = useState(false)
+  const [imageUploading, setImageUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const dq = useDebounce(query, 400)
 
   // Reset on close
@@ -68,7 +70,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
       setTimeout(() => {
         setQuery(''); setResults([]); setJpResults([]); setSelected(null); setSelectedJp(null)
         setForm({ ...DEFAULT_FORM }); setError(null); setVisibleCount(PAGE)
-        setPriceSource(null); setPriceLoading(false); setCatalog('EN')
+        setPriceSource(null); setPriceLoading(false); setImageUploading(false); setCatalog('EN')
       }, 300)
     }
   }, [open])
@@ -180,6 +182,18 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
 
   function upd<K extends keyof typeof form>(k: K, v: typeof form[K]) {
     setForm(f => ({ ...f, [k]: v }))
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageUploading(true)
+    const fd = new FormData()
+    fd.append('file', file)
+    const url = await uploadCardImageAction(fd)
+    if (url) setForm(f => ({ ...f, image_url: url }))
+    setImageUploading(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -332,8 +346,8 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
               )}
             </div>
 
-            {/* EN selected card preview */}
-            {selected && form.image_url && (
+            {/* Card preview + image upload — always visible when card selected */}
+            {(selected || selectedJp) && (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 14,
                 padding: '12px 14px',
@@ -341,47 +355,46 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                 border: '1px solid var(--line-2)',
                 borderRadius: 10,
               }}>
-                <img
-                  src={form.image_url}
-                  alt={form.name}
-                  style={{ width: 54, height: 76, objectFit: 'contain', borderRadius: 6, flexShrink: 0 }}
-                />
+                {/* Image area — click to upload */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => fileInputRef.current?.click()}
+                  onKeyDown={e => e.key === 'Enter' && fileInputRef.current?.click()}
+                  title="Carica foto"
+                  style={{
+                    width: 54, height: 76, flexShrink: 0, borderRadius: 6,
+                    overflow: 'hidden', position: 'relative', cursor: 'pointer',
+                    background: 'var(--bg-2)', border: '1px solid var(--line-2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  {imageUploading ? (
+                    <Loader2 size={18} style={{ color: 'var(--ink-3)', animation: 'spin 1s linear infinite' }} />
+                  ) : form.image_url ? (
+                    <>
+                      <img src={form.image_url} alt={form.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      <div style={{
+                        position: 'absolute', inset: 0, background: 'rgba(0,0,0,.45)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        opacity: 0, transition: 'opacity .15s',
+                      }}
+                        onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                        onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
+                      >
+                        <Camera size={16} style={{ color: '#fff' }} />
+                      </div>
+                    </>
+                  ) : (
+                    <Camera size={18} style={{ color: 'var(--ink-3)' }} />
+                  )}
+                </div>
+                <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, color: 'var(--ink-0)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.name}</div>
-                  <div style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 11, color: 'var(--ink-3)', marginTop: 3 }}>{form.set_name} · {form.card_number}</div>
+                  <div style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 11, color: 'var(--ink-3)', marginTop: 3 }}>{form.set_name}{form.card_number ? ` · ${form.card_number}` : ''}</div>
                   {form.rarity && <div style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 10, color: 'var(--ink-3)', marginTop: 2 }}>{form.rarity}</div>}
-                </div>
-                <button
-                  type="button"
-                  onClick={clearSelected}
-                  style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 11, color: 'var(--ink-3)', flexShrink: 0, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--line-2)', background: 'transparent', cursor: 'pointer' }}
-                >
-                  Cambia
-                </button>
-              </div>
-            )}
-
-            {/* JP selected card preview */}
-            {selectedJp && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 14,
-                padding: '12px 14px',
-                background: 'var(--bg-1)',
-                border: '1px solid var(--line-2)',
-                borderRadius: 10,
-              }}>
-                <div style={{ width: 54, height: 76, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {form.image_url
-                    ? <img src={form.image_url} alt={selectedJp.name} style={{ width: 54, height: 76, objectFit: 'contain', borderRadius: 6 }} />
-                    : <span style={{ fontSize: 28 }}>🇯🇵</span>
-                  }
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, color: 'var(--ink-0)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedJp.name}</div>
-                  <div style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 11, color: 'var(--ink-3)', marginTop: 3 }}>
-                    {selectedJp.set_name}{selectedJp.number ? ` · ${selectedJp.number}` : ''}
-                  </div>
-                  {selectedJp.rarity && <div style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 10, color: 'var(--ink-3)', marginTop: 2 }}>{selectedJp.rarity}</div>}
                 </div>
                 <button
                   type="button"
@@ -397,6 +410,34 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
               <label>Nome carta</label>
               <input value={form.name} onChange={e => upd('name', e.target.value)} placeholder="es. Charizard" required />
             </div>
+
+            {/* Manual image upload when no card selected from search */}
+            {!selected && !selectedJp && (
+              <div className="field">
+                <label>Foto carta</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {form.image_url
+                    ? <img src={form.image_url} alt="carta" style={{ width: 48, height: 68, objectFit: 'contain', borderRadius: 6, border: '1px solid var(--line-2)' }} />
+                    : null
+                  }
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={imageUploading}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '7px 12px', borderRadius: 8, border: '1px solid var(--line-2)',
+                      background: 'transparent', cursor: 'pointer',
+                      fontFamily: 'var(--font-jetbrains)', fontSize: 12, color: 'var(--ink-2)',
+                    }}
+                  >
+                    {imageUploading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Camera size={13} />}
+                    {form.image_url ? 'Cambia foto' : 'Carica foto'}
+                  </button>
+                  {!selected && !selectedJp && <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />}
+                </div>
+              </div>
+            )}
 
             <div className="field-row">
               <div className="field">
