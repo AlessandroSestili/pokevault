@@ -10,24 +10,33 @@ export async function addCardAction(
   data: Omit<CollectionCard, 'id' | 'created_at'>,
   manualPriceEur?: number
 ): Promise<string | null> {
+  console.log('[addCard] start', { name: data.name, api_id: data.api_id, api_source: data.api_source, manualPriceEur })
   const id = await insertCard(data)
+  console.log('[addCard] insertCard result:', id)
   if (id) {
     let priceEur: number | null = null
     let priceUsd: number | undefined
 
     if (data.api_id && data.api_source === 'pokemontcg') {
       const tcgCard = await fetchCardById(data.api_id)
+      console.log('[addCard] tcgCard fetched:', !!tcgCard, 'cardmarket:', tcgCard?.cardmarket?.prices?.trendPrice)
       priceEur = tcgCard ? (extractMarketPrice(tcgCard, 'cardmarket') ?? null) : null
       priceUsd = tcgCard ? (extractMarketPrice(tcgCard, 'tcgplayer') ?? undefined) : undefined
     }
 
+    console.log('[addCard] priceEur after API:', priceEur, '| manualPriceEur:', manualPriceEur)
     if (priceEur === null && manualPriceEur && manualPriceEur > 0) {
       priceEur = manualPriceEur
+      console.log('[addCard] using manual price:', priceEur)
     }
 
     if (priceEur !== null) {
       const today = new Date().toISOString().slice(0, 10)
+      console.log('[addCard] saving snapshot:', { id, today, priceEur, priceUsd })
       await upsertPriceSnapshot(id, today, priceEur, priceUsd)
+      console.log('[addCard] snapshot saved')
+    } else {
+      console.log('[addCard] no price available, skipping snapshot')
     }
   }
   revalidatePath('/')

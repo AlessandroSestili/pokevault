@@ -112,7 +112,10 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     if (isNaN(cond) || cond < 1 || cond > 10) { setError('Grado non valido (1–10)'); return }
 
     const manualPrice = parseFloat(form.current)
+    console.log('[modal] submit', { name: form.name, api_id: form.api_id, current: form.current, manualPrice })
     startTransition(async () => {
+      const manualPriceArg = !isNaN(manualPrice) && manualPrice > 0 ? manualPrice : undefined
+      console.log('[modal] calling addCardAction, manualPriceArg:', manualPriceArg)
       const id = await addCardAction({
         name: form.name,
         set_id: form.set_name.toLowerCase().replace(/\s+/g, '-') || 'unknown',
@@ -131,7 +134,8 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
         acquired_date: form.date,
         notes: null,
         is_favorite: false,
-      }, !isNaN(manualPrice) && manualPrice > 0 ? manualPrice : undefined)
+      }, manualPriceArg)
+      console.log('[modal] addCardAction returned id:', id)
       if (id) onClose()
       else setError('Errore durante il salvataggio')
     })
@@ -300,7 +304,11 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
             </div>
 
             <div className="field">
-              <label>Valore corrente (€){selected && form.current ? ' · da API' : ''}</label>
+              <label>
+                Valore corrente (€)
+                {selected && form.current ? <span style={{ color: 'var(--pos)', marginLeft: 6, fontSize: 10 }}>· da API</span> : null}
+                {selected && !form.current ? <span style={{ color: 'var(--lightning, #FFCB2E)', marginLeft: 6, fontSize: 10 }}>· inserisci manualmente</span> : null}
+              </label>
               <input
                 type="number"
                 step="0.01"
@@ -308,6 +316,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                 value={form.current}
                 onChange={e => upd('current', e.target.value)}
                 placeholder="es. 12.50"
+                style={selected && !form.current ? { borderColor: '#FFCB2E' } : undefined}
               />
             </div>
 

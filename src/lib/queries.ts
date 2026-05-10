@@ -77,8 +77,10 @@ export async function upsertPriceSnapshot(
   priceUsd?: number
 ): Promise<void> {
   const supabase = await createClient()
-  await supabase.from('price_snapshots').upsert(
+  const { error } = await supabase.from('price_snapshots').upsert(
     { card_id: cardId, date, price_eur: priceEur, price_usd: priceUsd ?? null },
     { onConflict: 'card_id,date' }
   )
+  if (error) console.error('[upsertPriceSnapshot] error:', JSON.stringify(error))
+  else console.log('[upsertPriceSnapshot] ok', { cardId, date, priceEur })
 }

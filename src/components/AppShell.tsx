@@ -26,7 +26,10 @@ export function AppShell({ initialCards }: { initialCards: CollectionCardWithPri
   const [importOpen, setImportOpen] = useState(false)
 
   // Keep cards in sync if parent re-renders (server revalidation)
-  useEffect(() => { setCards(initialCards) }, [initialCards])
+  useEffect(() => {
+    console.log('[AppShell] initialCards updated, count:', initialCards.length, 'sample market_price:', initialCards[0]?.market_price)
+    setCards(initialCards)
+  }, [initialCards])
 
   // Esc closes sheet
   useEffect(() => {
