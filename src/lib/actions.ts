@@ -2,7 +2,34 @@
 
 import { revalidatePath } from 'next/cache'
 import { insertCard, updateCard, deleteCard, upsertPriceSnapshot } from './queries'
+import { fetchCardById } from './api/pokemontcg'
+import { extractMarketPrice } from './api/prices'
+import { fetchJapaneseCardPrice } from './api/justtcg'
 import type { CollectionCard, Language, Source } from '@/types'
+
+export async function resolveCardPriceAction(
+  cardName: string,
+  apiId: string | null,
+  language: string
+): Promise<{ price: number | null; source: 'api' | 'jap' | 'en-fallback' | null }> {
+  if (language === 'JP') {
+    const japPrice = await fetchJapaneseCardPrice(cardName)
+    if (japPrice !== null) return { price: japPrice, source: 'jap' }
+
+    // Fallback to EN price from pokemontcg.io
+    if (apiId) {
+      const tcgCard = await fetchCardById(apiId)
+      const enPrice = tcgCard
+        ? (extractMarketPrice(tcgCard, 'cardmarket') ?? extractMarketPrice(tcgCard, 'tcgplayer') ?? null)
+        : null
+      if (enPrice !== null) return { price: enPrice, source: 'en-fallback' }
+    }
+    return { price: null, source: null }
+  }
+
+  // EN / ITA — price already extracted client-side from search result
+  return { price: null, source: null }
+}
 
 export async function addCardAction(
   data: Omit<CollectionCard, 'id' | 'created_at'>,

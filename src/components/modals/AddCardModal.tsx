@@ -5,7 +5,7 @@ import { X, Search, Loader2, Plus, ChevronDown } from 'lucide-react'
 import type { PokemonTcgCard, Language, Source } from '@/types'
 import { searchCards } from '@/lib/api/pokemontcg'
 import { extractMarketPrice } from '@/lib/api/prices'
-import { addCardAction } from '@/lib/actions'
+import { addCardAction, resolveCardPriceAction } from '@/lib/actions'
 
 const LANGUAGES: Language[] = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
 const SOURCES: Source[] = ['Cardmarket', 'eBay', 'TCGPlayer', 'Negozio locale', 'Scambio', 'Asta', 'Altro']
@@ -53,6 +53,8 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
   const [form, setForm] = useState({ ...DEFAULT_FORM })
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [priceSource, setPriceSource] = useState<'api' | 'jap' | 'en-fallback' | null>(null)
+  const [priceLoading, setPriceLoading] = useState(false)
   const dq = useDebounce(query, 400)
 
   useEffect(() => {
@@ -60,9 +62,28 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
       setTimeout(() => {
         setQuery(''); setResults([]); setSelected(null)
         setForm({ ...DEFAULT_FORM }); setError(null); setVisibleCount(PAGE)
+        setPriceSource(null); setPriceLoading(false)
       }, 300)
     }
   }, [open])
+
+  useEffect(() => {
+    if (!selected) return
+    setPriceLoading(true)
+    if (form.language === 'JP') {
+      resolveCardPriceAction(selected.name, form.api_id, 'JP').then(({ price, source }) => {
+        setForm(f => ({ ...f, current: price ? price.toFixed(2) : '' }))
+        setPriceSource(source)
+        setPriceLoading(false)
+      })
+    } else {
+      const price = extractMarketPrice(selected, 'cardmarket') ?? extractMarketPrice(selected, 'tcgplayer')
+      setForm(f => ({ ...f, current: price ? price.toFixed(2) : '' }))
+      setPriceSource(price ? 'api' : null)
+      setPriceLoading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.language, selected])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -78,7 +99,6 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
   }, [dq])
 
   function selectCard(card: PokemonTcgCard) {
-    const price = extractMarketPrice(card, 'cardmarket') ?? extractMarketPrice(card, 'tcgplayer')
     setError(null)
     setSelected(card)
     setForm(f => ({
@@ -88,7 +108,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
       card_number: `${card.number}/${card.set.printedTotal}`,
       element: (card.types?.[0] ?? 'colorless').toLowerCase(),
       rarity: card.rarity ?? 'Holo Rare',
-      current: price ? price.toFixed(2) : '',
+      current: '',
       image_url: card.images?.large ?? card.images?.small ?? null,
       api_id: card.id,
     }))
@@ -98,7 +118,8 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
 
   function clearSelected() {
     setSelected(null)
-    setForm(f => ({ ...f, name: '', set_name: '', card_number: '', image_url: null, api_id: null }))
+    setPriceSource(null)
+    setForm(f => ({ ...f, name: '', set_name: '', card_number: '', current: '', image_url: null, api_id: null }))
   }
 
   function upd<K extends keyof typeof form>(k: K, v: typeof form[K]) {
@@ -115,10 +136,8 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     if (isNaN(price) || price <= 0) { setError('Valore obbligatorio (€ > 0)'); return }
 
     const manualPrice = parseFloat(form.current)
-    console.log('[modal] submit', { name: form.name, api_id: form.api_id, current: form.current, manualPrice })
     startTransition(async () => {
       const manualPriceArg = !isNaN(manualPrice) && manualPrice > 0 ? manualPrice : undefined
-      console.log('[modal] calling addCardAction, manualPriceArg:', manualPriceArg)
       const id = await addCardAction({
         name: form.name,
         set_id: form.set_name.toLowerCase().replace(/\s+/g, '-') || 'unknown',
@@ -138,7 +157,6 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
         notes: null,
         is_favorite: false,
       }, manualPriceArg)
-      console.log('[modal] addCardAction returned id:', id)
       if (id) onClose()
       else setError('Errore durante il salvataggio')
     })
@@ -318,8 +336,11 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
             <div className="field">
               <label>
                 Valore corrente (€)
-                {selected && form.current ? <span style={{ color: 'var(--pos)', marginLeft: 6, fontSize: 10 }}>· da API</span> : null}
-                {selected && !form.current ? <span style={{ color: 'var(--lightning, #FFCB2E)', marginLeft: 6, fontSize: 10 }}>· inserisci manualmente</span> : null}
+                {priceLoading && <span style={{ color: 'var(--ink-3)', marginLeft: 6, fontSize: 10 }}>· carico...</span>}
+                {!priceLoading && priceSource === 'api' && <span style={{ color: 'var(--pos)', marginLeft: 6, fontSize: 10 }}>· da API</span>}
+                {!priceLoading && priceSource === 'jap' && <span style={{ color: 'var(--pos)', marginLeft: 6, fontSize: 10 }}>· JAP API</span>}
+                {!priceLoading && priceSource === 'en-fallback' && <span style={{ color: 'var(--lightning, #FFCB2E)', marginLeft: 6, fontSize: 10 }}>· EN fallback</span>}
+                {!priceLoading && selected && !priceSource && !form.current && <span style={{ color: 'var(--lightning, #FFCB2E)', marginLeft: 6, fontSize: 10 }}>· inserisci manualmente</span>}
               </label>
               <input
                 type="number"
@@ -328,7 +349,8 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                 value={form.current}
                 onChange={e => upd('current', e.target.value)}
                 placeholder="es. 12.50"
-                style={selected && !form.current ? { borderColor: '#FFCB2E' } : undefined}
+                disabled={priceLoading}
+                style={selected && !form.current && !priceLoading ? { borderColor: '#FFCB2E' } : undefined}
               />
             </div>
 

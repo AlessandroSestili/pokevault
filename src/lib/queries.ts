@@ -82,5 +82,4 @@ export async function upsertPriceSnapshot(
     { onConflict: 'card_id,date' }
   )
   if (error) console.error('[upsertPriceSnapshot] error:', JSON.stringify(error))
-  else console.log('[upsertPriceSnapshot] ok', { cardId, date, priceEur })
 }
