@@ -5,7 +5,6 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const POKEMON_GAME_ID = 5;
 const BASE_URL = "https://api.cardtrader.com/api/v2";
-const SLEEP_MS = 100; // 10 req/s max
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
@@ -14,12 +13,7 @@ async function ct<T>(path: string): Promise<T> {
     headers: { Authorization: `Bearer ${CARDTRADER_TOKEN}` },
   });
   if (!res.ok) throw new Error(`CardTrader ${path} → ${res.status}`);
-  const json = await res.json();
-  return (json.array ?? json) as T;
-}
-
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
+  return res.json() as Promise<T>;
 }
 
 function log(msg: string) {
@@ -27,14 +21,13 @@ function log(msg: string) {
   process.stdout.write(`[${ts}] ${msg}\n`);
 }
 
-type MarketProduct = {
-  price: { cents: number; currency: string };
-};
+type Expansion = { id: number; name: string; code: string; game_id: number };
 
-type Card = { id: string; cardtrader_blueprint_id: number };
+// blueprint_id → lista prodotti
+type ExpansionProducts = Record<string, { price_cents: number; price_currency: string }[]>;
 
 async function main() {
-  log("Avvio aggiornamento prezzi...");
+  log("Avvio aggiornamento prezzi (per set)...");
 
   const { data: run } = await supabase
     .from("market_scrape_runs")
@@ -47,48 +40,69 @@ async function main() {
   const errors: string[] = [];
 
   try {
-    // Fetch tutte le carte dal DB
-    const { data: cards, error: cardsErr } = await supabase
+    const allExpansions = await ct<Expansion[]>(`/expansions`);
+    const expansions = (allExpansions as unknown as Expansion[]).filter(
+      (e) => e.game_id === POKEMON_GAME_ID
+    );
+    log(`Set Pokémon: ${expansions.length}`);
+
+    // Carica mappa blueprint_id → card.id dal DB
+    const { data: dbCards } = await supabase
       .from("market_cards")
       .select("id, cardtrader_blueprint_id")
       .not("cardtrader_blueprint_id", "is", null);
 
-    if (cardsErr) throw cardsErr;
-    log(`Carte da aggiornare: ${cards!.length}`);
+    const blueprintToCardId = new Map<number, string>(
+      (dbCards ?? []).map((c) => [c.cardtrader_blueprint_id, c.id])
+    );
+    log(`Carte in DB con blueprint: ${blueprintToCardId.size}`);
 
-    for (let i = 0; i < cards!.length; i++) {
-      const card = cards![i] as Card;
-      const pct = Math.round(((i + 1) / cards!.length) * 100);
-
-      if (i % 500 === 0) {
-        log(`[${pct}%] (${i + 1}/${cards!.length}) — prezzi aggiornati: ${updated}`);
-        await supabase
-          .from("market_scrape_runs")
-          .update({ cards_updated: updated })
-          .eq("id", runId);
-      }
+    for (let i = 0; i < expansions.length; i++) {
+      const exp = expansions[i];
+      const pct = Math.round(((i + 1) / expansions.length) * 100);
+      log(`[${pct}%] (${i + 1}/${expansions.length}) ${exp.name}`);
 
       try {
-        await sleep(SLEEP_MS);
-        const products = await ct<MarketProduct[]>(
-          `/marketplace/products?blueprint_id=${card.cardtrader_blueprint_id}&game_id=${POKEMON_GAME_ID}`
-        ).catch(() => [] as MarketProduct[]);
+        const products = await ct<ExpansionProducts>(
+          `/marketplace/products?expansion_id=${exp.id}&game_id=${POKEMON_GAME_ID}`
+        );
 
-        if (products.length === 0) continue;
+        const blueprintIds = Object.keys(products);
+        if (blueprintIds.length === 0) continue;
 
-        const cents = products.map((p) => p.price.cents);
-        await supabase.from("market_prices").insert({
-          card_id: card.id,
-          source: "cardtrader",
-          price_low: Math.min(...cents) / 100,
-          price_mid: cents.reduce((s, x) => s + x, 0) / cents.length / 100,
-          price_high: Math.max(...cents) / 100,
-          currency: products[0].price.currency,
-        });
+        const rows = [];
+        for (const bpIdStr of blueprintIds) {
+          const cardId = blueprintToCardId.get(Number(bpIdStr));
+          if (!cardId) continue;
 
-        updated++;
+          const listings = products[bpIdStr];
+          const cents = listings.map((l) => l.price_cents);
+          rows.push({
+            card_id: cardId,
+            source: "cardtrader",
+            price_low: Math.min(...cents) / 100,
+            price_mid: cents.reduce((s, x) => s + x, 0) / cents.length / 100,
+            price_high: Math.max(...cents) / 100,
+            currency: listings[0].price_currency,
+          });
+        }
+
+        if (rows.length > 0) {
+          const { error } = await supabase.from("market_prices").insert(rows);
+          if (error) errors.push(`Set ${exp.name}: ${error.message}`);
+          else updated += rows.length;
+        }
+
+        if (i % 10 === 0) {
+          await supabase
+            .from("market_scrape_runs")
+            .update({ cards_updated: updated })
+            .eq("id", runId);
+        }
       } catch (e) {
-        errors.push(`Card ${card.id}: ${String(e)}`);
+        const msg = `Set ${exp.name}: ${String(e)}`;
+        errors.push(msg);
+        log(`  ⚠ ${msg}`);
       }
     }
   } finally {
@@ -102,7 +116,7 @@ async function main() {
       })
       .eq("id", runId);
 
-    log(`✓ Completato. Prezzi: ${updated}, Errori: ${errors.length}`);
+    log(`✓ Completato. Prezzi inseriti: ${updated}, Errori: ${errors.length}`);
   }
 }
 
