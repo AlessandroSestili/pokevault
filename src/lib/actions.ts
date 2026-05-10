@@ -7,13 +7,24 @@ import { extractMarketPrice } from './api/prices'
 import type { CollectionCard, Language, Source } from '@/types'
 
 export async function addCardAction(
-  data: Omit<CollectionCard, 'id' | 'created_at'>
+  data: Omit<CollectionCard, 'id' | 'created_at'>,
+  manualPriceEur?: number
 ): Promise<string | null> {
   const id = await insertCard(data)
-  if (id && data.api_id && data.api_source === 'pokemontcg') {
-    const tcgCard = await fetchCardById(data.api_id)
-    const priceEur = tcgCard ? (extractMarketPrice(tcgCard, 'cardmarket') ?? null) : null
-    const priceUsd = tcgCard ? (extractMarketPrice(tcgCard, 'tcgplayer') ?? undefined) : undefined
+  if (id) {
+    let priceEur: number | null = null
+    let priceUsd: number | undefined
+
+    if (data.api_id && data.api_source === 'pokemontcg') {
+      const tcgCard = await fetchCardById(data.api_id)
+      priceEur = tcgCard ? (extractMarketPrice(tcgCard, 'cardmarket') ?? null) : null
+      priceUsd = tcgCard ? (extractMarketPrice(tcgCard, 'tcgplayer') ?? undefined) : undefined
+    }
+
+    if (priceEur === null && manualPriceEur && manualPriceEur > 0) {
+      priceEur = manualPriceEur
+    }
+
     if (priceEur !== null) {
       const today = new Date().toISOString().slice(0, 10)
       await upsertPriceSnapshot(id, today, priceEur, priceUsd)

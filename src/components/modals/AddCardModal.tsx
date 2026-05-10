@@ -111,6 +111,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     if (!form.name.trim()) { setError('Nome obbligatorio'); return }
     if (isNaN(cond) || cond < 1 || cond > 10) { setError('Grado non valido (1–10)'); return }
 
+    const manualPrice = parseFloat(form.current)
     startTransition(async () => {
       const id = await addCardAction({
         name: form.name,
@@ -130,7 +131,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
         acquired_date: form.date,
         notes: null,
         is_favorite: false,
-      })
+      }, !isNaN(manualPrice) && manualPrice > 0 ? manualPrice : undefined)
       if (id) onClose()
       else setError('Errore durante il salvataggio')
     })
@@ -296,6 +297,18 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                 <label>Data acquisto</label>
                 <input type="date" value={form.date} onChange={e => upd('date', e.target.value)} />
               </div>
+            </div>
+
+            <div className="field">
+              <label>Valore corrente (€){selected && form.current ? ' · da API' : ''}</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.current}
+                onChange={e => upd('current', e.target.value)}
+                placeholder="es. 12.50"
+              />
             </div>
 
             {error && <p style={{ color: 'var(--neg)', fontFamily: 'var(--font-jetbrains)', fontSize: 12, textAlign: 'center', margin: '4px 0 0' }}>{error}</p>}
