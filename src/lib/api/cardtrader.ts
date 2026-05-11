@@ -79,7 +79,7 @@ export const TOTAL_TO_CODES: Record<number, string[]> = {
    91: ['paf'],
   162: ['tef'],
   167: ['twm'],
-   64: ['sfa', 'sv6a', 'sv7a'],  // Shrouded Fable EN + Mask of Change / Ancient Corner JP
+   64: ['sfa', 'sv6a', 'sv7a', 'ju'],  // Shrouded Fable EN + Mask of Change / Ancient Corner JP + Jungle
   142: ['scr'],
   191: ['ssp'],
   // ── SWSH Era EN ────────────────────────────────────────────────────────────
