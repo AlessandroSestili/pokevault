@@ -30,6 +30,12 @@ const PREFIX_TO_CODES: Record<string, string[]> = {
   'HGSS': ['hggsbs'],                     // HGSS Black Star Promos
 }
 
+// Some sets (SM era, vintage) store collector_number as "134/147" instead of "134"
+function cnMatches(cn: string, paddedNum: string, rawNum: string): boolean {
+  const base = cn.includes('/') ? cn.split('/')[0] : cn
+  return base === paddedNum || base === rawNum
+}
+
 export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get('q') ?? '').trim()
   const limit = Math.min(parseInt(req.nextUrl.searchParams.get('limit') ?? '24'), 40)
@@ -48,10 +54,9 @@ export async function GET(req: NextRequest) {
     if (!expansion) return NextResponse.json([])
 
     const blueprints = await getBlueprintsByExpansion(expansion.id)
-    const matches = blueprints.filter(b => {
-      const cn = b.fixed_properties.collector_number
-      return cn === paddedNum || cn === numStr
-    })
+    const matches = blueprints.filter(b =>
+      cnMatches(b.fixed_properties?.collector_number ?? '', paddedNum, numStr)
+    )
 
     return NextResponse.json(
       matches.slice(0, limit).map(b => blueprintToResult(b, code, expansion.name))
@@ -78,10 +83,7 @@ export async function GET(req: NextRequest) {
       targets.map(async ({ code, exp }) => {
         const blueprints = await getBlueprintsByExpansion(exp.id)
         return blueprints
-          .filter(b => {
-            const cn = b.fixed_properties.collector_number
-            return cn === paddedNum || cn === numStr
-          })
+          .filter(b => cnMatches(b.fixed_properties?.collector_number ?? '', paddedNum, numStr))
           .map(b => blueprintToResult(b, code, exp.name))
       })
     )
@@ -112,6 +114,33 @@ export async function GET(req: NextRequest) {
         })
       )
 
+      const flat = groups.flat()
+      if (flat.length) return NextResponse.json(flat.slice(0, limit))
+    }
+  }
+
+  // Pattern 4b: "NAME NNN/TTT" — e.g. "Necrozma 134/142"
+  const nameNumTotalMatch = q.match(/^(.+?)\s+(\d{1,4})\/(\d{1,3})$/)
+  if (nameNumTotalMatch) {
+    const name = nameNumTotalMatch[1].trim()
+    const numStr = nameNumTotalMatch[2]
+    const total = parseInt(nameNumTotalMatch[3])
+    const paddedNum = numStr.padStart(3, '0')
+    const codes = TOTAL_TO_CODES[total] ?? []
+    if (codes.length) {
+      const expansions = await getExpansions()
+      const targets = codes
+        .map(c => ({ code: c, exp: expansions.get(c) }))
+        .filter((x): x is { code: string; exp: CTExpansion } => x.exp != null)
+      const groups = await Promise.all(
+        targets.map(async ({ code, exp }) => {
+          const bps = await getBlueprintsByExpansion(exp.id)
+          return bps
+            .filter(b => cnMatches(b.fixed_properties?.collector_number ?? '', paddedNum, numStr))
+            .filter(b => b.name.toLowerCase().includes(name.toLowerCase()))
+            .map(b => blueprintToResult(b, code, exp.name))
+        })
+      )
       const flat = groups.flat()
       if (flat.length) return NextResponse.json(flat.slice(0, limit))
     }

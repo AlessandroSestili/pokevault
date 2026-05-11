@@ -112,6 +112,7 @@ export const TOTAL_TO_CODES: Record<number, string[]> = {
   107: ['dx'],     // EX Deoxys
   111: ['cinv', 'n1', 'rr'],
   114: ['blw', 'sts'],
+  147: ['bus'],    // Burning Shadows
 }
 
 // ── API helpers ──────────────────────────────────────────────────────────────
