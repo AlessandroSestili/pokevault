@@ -30,10 +30,10 @@ const PREFIX_TO_CODES: Record<string, string[]> = {
   'HGSS': ['hggsbs'],                     // HGSS Black Star Promos
 }
 
-// Some sets (SM era, vintage) store collector_number as "134/147" instead of "134"
+// Some sets (SM era, vintage) store collector_number as "134/147" or "49/92" instead of "134"/"049"
 function cnMatches(cn: string, paddedNum: string, rawNum: string): boolean {
   const base = cn.includes('/') ? cn.split('/')[0] : cn
-  return base === paddedNum || base === rawNum
+  return base === paddedNum || base === rawNum || parseInt(base) === parseInt(rawNum)
 }
 
 export async function GET(req: NextRequest) {
