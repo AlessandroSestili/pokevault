@@ -89,7 +89,7 @@ export function DashboardPage({
     [cards]
   )
 
-  const intPart = Math.floor(Math.abs(totals.value)).toLocaleString('en-US')
+  const intPart = Math.floor(Math.abs(totals.value)).toLocaleString('it-IT')
   const decPart = (totals.value % 1).toFixed(2).split('.')[1]
 
   return (
@@ -98,8 +98,8 @@ export function DashboardPage({
         <div className="hero__main">
           <div className="hero__label">Valore totale collezione</div>
           <div className="hero__value">
-            {totals.value < 0 && '−'}${ intPart}
-            <span className="cents">.{decPart}</span>
+            {totals.value < 0 && '−'}€{intPart}
+            <span className="cents">,{decPart}</span>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <span className={'hero__delta ' + (totals.dayPl >= 0 ? 'hero__delta--pos' : 'hero__delta--neg')}>
