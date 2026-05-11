@@ -8,6 +8,16 @@ import {
   type CTExpansion,
 } from '@/lib/api/cardtrader'
 
+// User-friendly set code → actual CT expansion code
+const SET_CODE_ALIASES: Record<string, string> = {
+  'svp':   'svpromo',  // SV Black Star Promos (SVP 001...)
+  'swshp': 'swshbs',   // SWSH Black Star Promos
+  'smp':   'smbs',     // SM Black Star Promos
+  'xyp':   'xybsp',    // XY Black Star Promos
+  'bwp':   'bwbsp',    // BW Black Star Promos
+  'dpp':   'dpbsp',    // DP Black Star Promos
+}
+
 // Subset/promo prefix → expansion codes
 const PREFIX_TO_CODES: Record<string, string[]> = {
   'GG':   ['crz'],                        // Crown Zenith Galarian Gallery
@@ -34,7 +44,7 @@ export async function GET(req: NextRequest) {
     const paddedNum = numStr.padStart(3, '0')
 
     const expansions = await getExpansions()
-    const expansion = expansions.get(code)
+    const expansion = expansions.get(code) ?? expansions.get(SET_CODE_ALIASES[code] ?? '')
     if (!expansion) return NextResponse.json([])
 
     const blueprints = await getBlueprintsByExpansion(expansion.id)
