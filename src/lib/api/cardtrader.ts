@@ -107,7 +107,7 @@ export const TOTAL_TO_CODES: Record<number, string[]> = {
   100: ['sv9', 's3', 's4', 's8', 's9', 's11'],
    98: ['sv10'],   // The Glory of Team Rocket (SV10 JP)
    28: ['svb'],
-  115: ['cs2a', 'cs2b'],
+  115: ['cs2a', 'cs2b', 'uf', 'wcd2006'],  // Vivid Portrayals JP + EX Unseen Forces + World Championship Decks 2006
   // ── Vintage EN (selected sets with distinctive totals) ────────────────────
   107: ['dx'],     // EX Deoxys
   111: ['cinv', 'n1', 'rr'],
