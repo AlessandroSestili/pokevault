@@ -11,6 +11,16 @@ import { Sparkline } from '@/components/ui/Sparkline'
 
 const LANGUAGES: Language[] = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
 const SOURCES: Source[] = ['Cardmarket', 'eBay', 'TCGPlayer', 'Negozio locale', 'Scambio', 'Asta', 'Altro']
+const ELEMENTS = [
+  { key: 'fire',      color: '#FF5B47', label: 'Fire' },
+  { key: 'water',     color: '#3B9DFF', label: 'Water' },
+  { key: 'lightning', color: '#FFCB2E', label: 'Lightning' },
+  { key: 'grass',     color: '#37C26B', label: 'Grass' },
+  { key: 'psychic',   color: '#B07BFF', label: 'Psychic' },
+  { key: 'darkness',  color: '#7A8AA0', label: 'Darkness' },
+  { key: 'fairy',     color: '#FF7AC4', label: 'Fairy' },
+  { key: 'colorless', color: '#A0A0A0', label: 'Colorless' },
+]
 
 const inputStyle: React.CSSProperties = {
   background: 'var(--bg-2)',
@@ -64,6 +74,7 @@ export function CardDetailSheet({
   const [source, setSource] = useState<Source>('Cardmarket')
   const [acquiredDate, setAcquiredDate] = useState('')
   const [notes, setNotes] = useState('')
+  const [element, setElement] = useState<string>('colorless')
   const [error, setError] = useState<string | null>(null)
 
   if (!card) return null
@@ -77,6 +88,7 @@ export function CardDetailSheet({
     setSource(card!.source as Source)
     setAcquiredDate(card!.acquired_date)
     setNotes(card!.notes ?? '')
+    setElement(card!.element ?? 'colorless')
     setError(null)
     setEditing(true)
   }
@@ -111,6 +123,7 @@ export function CardDetailSheet({
         source,
         acquired_date: acquiredDate,
         notes: notes.trim() || null,
+        element: element || null,
       })
       if (ok) setEditing(false)
       else setError('Errore durante il salvataggio')
@@ -149,6 +162,22 @@ export function CardDetailSheet({
               value={condition} onChange={e => setCondition(e.target.value)}
               style={inputStyle} required
             />
+          </InputField>
+
+          <InputField label="Tipo Pokémon">
+            <div className="elem-picker">
+              {ELEMENTS.map(el => (
+                <button
+                  key={el.key}
+                  type="button"
+                  className={element === el.key ? 'is-active' : ''}
+                  style={{ '--art-a': el.color } as React.CSSProperties}
+                  onClick={() => setElement(el.key)}
+                >
+                  <span>{el.label}</span>
+                </button>
+              ))}
+            </div>
           </InputField>
 
           <InputField label="Lingua">

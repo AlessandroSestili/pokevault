@@ -192,6 +192,23 @@ export function CollectionPage({
                   </span>
                 </button>
                 {!collapsed && (
+                  view === 'list' ? (
+                    <div className="listview" style={{ padding: '0 12px 12px' }}>
+                      <div className="list__head">
+                        <div></div>
+                        <div>Nome</div>
+                        <div>Elemento</div>
+                        <div>Rarità</div>
+                        <div>Grado</div>
+                        <div style={{ textAlign: 'right' }}>Valore</div>
+                        <div style={{ textAlign: 'right' }}>P&L</div>
+                        <div></div>
+                      </div>
+                      {setCards.map(c => (
+                        <ListRow key={c.id} card={c} onOpen={onOpenCard} onToggleFav={onToggleFav} />
+                      ))}
+                    </div>
+                  ) : (
                   <div className="cards is-cozy" style={{ padding: '12px 12px' }}>
                     {setCards.map((c, i) => (
                       <div key={c.id} style={{ animationDelay: `${i * 20}ms` }}>
@@ -199,6 +216,7 @@ export function CollectionPage({
                       </div>
                     ))}
                   </div>
+                  )
                 )}
               </div>
             )
