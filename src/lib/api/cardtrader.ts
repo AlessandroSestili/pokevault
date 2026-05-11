@@ -94,7 +94,7 @@ export const TOTAL_TO_CODES: Record<number, string[]> = {
   // ── SV Era JP small sets ───────────────────────────────────────────────────
    73: ['sv1a'],
    78: ['sv1s', 'sv1v'],
-  165: ['sv2a'],
+  165: ['sv2a', 'ex'],  // Pokémon Card 151 JP + Expedition Base Set
    71: ['sv2d', 'sv2p', 'sv5k', 'sv5m'],
    62: ['sv3a'],
   190: ['sv4a'],
