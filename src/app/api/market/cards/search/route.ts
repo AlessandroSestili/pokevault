@@ -8,10 +8,16 @@ import {
   type CTExpansion,
 } from '@/lib/api/cardtrader'
 
-// Subset prefix → expansion codes (Gallery/Trainer Gallery subsets)
+// Subset/promo prefix → expansion codes
 const PREFIX_TO_CODES: Record<string, string[]> = {
-  'GG': ['crz'],              // Crown Zenith Galarian Gallery (GG01–GG70)
-  'TG': ['brs', 'astr', 'lorg', 'sit'], // Trainer Gallery (TG01–TG30 across SWSH sets)
+  'GG':   ['crz'],                        // Crown Zenith Galarian Gallery
+  'TG':   ['brs', 'astr', 'lorg', 'sit'], // Trainer Gallery (SWSH era)
+  'SWSH': ['swshbs'],                     // SWSH Black Star Promos
+  'SM':   ['smbs'],                       // SM Black Star Promos
+  'XY':   ['xybsp'],                      // XY Black Star Promos
+  'BW':   ['bwbsp'],                      // BW Black Star Promos
+  'DP':   ['dpbsp'],                      // DP Black Star Promos
+  'HGSS': ['hggsbs'],                     // HGSS Black Star Promos
 }
 
 export async function GET(req: NextRequest) {
@@ -101,7 +107,48 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Pattern 5: name search — live CT call + cached expansions map
+  // Pattern 5: standalone promo code — "SWSH260", "SM100", "XY01"
+  const standalonePromoMatch = q.match(/^([A-Za-z]{2,5})(\d{2,4})$/i)
+  if (standalonePromoMatch) {
+    const prefix = standalonePromoMatch[1].toUpperCase()
+    const numStr = standalonePromoMatch[2]
+    const collectorNumber = `${prefix}${numStr}`
+    const codes = PREFIX_TO_CODES[prefix] ?? []
+    if (codes.length) {
+      const expansions = await getExpansions()
+      const targets = codes
+        .map(c => ({ code: c, exp: expansions.get(c) }))
+        .filter((x): x is { code: string; exp: CTExpansion } => x.exp != null)
+      const groups = await Promise.all(
+        targets.map(async ({ code, exp }) => {
+          const bps = await getBlueprintsByExpansion(exp.id)
+          return bps
+            .filter(b => (b.fixed_properties?.collector_number ?? '').toUpperCase() === collectorNumber)
+            .map(b => blueprintToResult(b, code, exp.name))
+        })
+      )
+      const flat = groups.flat()
+      if (flat.length) return NextResponse.json(flat.slice(0, limit))
+    }
+  }
+
+  // Pattern 6: "name + promo code" — "Charizard V SWSH260"
+  const namePlusPromoMatch = q.match(/^(.+?)\s+([A-Za-z]{2,5}\d{2,4})$/i)
+  if (namePlusPromoMatch) {
+    const name = namePlusPromoMatch[1].trim()
+    const promoCode = namePlusPromoMatch[2].toUpperCase()
+    const results = await searchBlueprintsByName(name, 40)
+    const filtered = results.filter(
+      b => (b.fixed_properties?.collector_number ?? '').toUpperCase() === promoCode
+    )
+    if (filtered.length) {
+      return NextResponse.json(
+        filtered.slice(0, limit).map(b => blueprintToResult(b, b.expansion_code, b.expansion_name))
+      )
+    }
+  }
+
+  // Pattern 7: name search — live CT call + cached expansions map
   const blueprints = await searchBlueprintsByName(q, limit)
   return NextResponse.json(
     blueprints.map(b => blueprintToResult(b, b.expansion_code, b.expansion_name))
