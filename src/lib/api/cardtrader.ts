@@ -72,48 +72,80 @@ export function isJpExpansion(code: string): boolean {
  */
 export const TOTAL_TO_CODES: Record<number, string[]> = {
   // ── SV Era EN ──────────────────────────────────────────────────────────────
-  198: ['svi', 'cre'],   // Scarlet & Violet + Chilling Reign
+  198: ['svi', 'cre'],
   193: ['pal'],
   197: ['obf'],
   182: ['par'],
    91: ['paf'],
-  162: ['tef'],
+  162: ['tef', 'bkt'],      // Temporal Forces + BREAKthrough
   167: ['twm'],
-   64: ['sfa', 'sv6a', 'sv7a', 'ju'],  // Shrouded Fable EN + Mask of Change / Ancient Corner JP + Jungle
+   64: ['sfa', 'sv6a', 'sv7a', 'ju', 'n3'],  // Shrouded Fable + JP sets + Jungle + Neo Revelation
   142: ['scr'],
   191: ['ssp'],
   // ── SWSH Era EN ────────────────────────────────────────────────────────────
   202: ['ssh'],
   192: ['rcl'],
-  189: ['daa', 'astr'],  // Darkness Ablaze + Astral Radiance
+  189: ['daa', 'astr'],
   185: ['viv'],
   163: ['bst'],
-  172: ['brs', 's12a'],  // Brilliant Stars EN + VSTAR Universe JP
+  172: ['brs', 's12a'],
   195: ['sit'],
   159: ['crz'],
+  // ── SM Era EN ──────────────────────────────────────────────────────────────
+  149: ['sum'],             // Sun & Moon base
+  145: ['gri'],             // Guardians Rising
+  147: ['bus', 'aq'],       // Burning Shadows + Aquapolis
+  181: ['teu'],             // Team Up
+  214: ['unb'],             // Unbroken Bonds
+  236: ['cec'],             // Cosmic Eclipse
+  // ── XY Era EN ──────────────────────────────────────────────────────────────
+  171: ['xy'],              // The Best of XY
+  124: ['fco'],             // Fates Collide
+  122: ['bkp'],             // BREAKpoint
+  // ── BW Era EN ──────────────────────────────────────────────────────────────
+  135: ['pls'],             // Plasma Storm
+  116: ['plf'],             // Plasma Freeze
+  114: ['blw', 'sts'],      // Black & White + Stormfront
+  // ── DP Era EN ──────────────────────────────────────────────────────────────
+  130: ['b2', 'dp'],        // Base Set 2 + Diamond & Pearl
+  132: ['sw'],              // Secret Wonders
+  123: ['mt'],              // Mysterious Treasures
+  127: ['pl'],              // Platinum
+  146: ['la'],              // Legends Awakened
+   99: ['ar'],              // Platinum Arceus
+  // ── EX Era EN ──────────────────────────────────────────────────────────────
+  109: ['rs', 'trr'],       // EX Ruby & Sapphire + Team Rocket Returns
+  112: ['rg'],              // EX FireRed & LeafGreen
+  113: ['ds'],              // EX Delta Species
+  107: ['dx'],              // EX Deoxys
+   97: ['dr'],              // EX Dragon
+   95: ['exma', 'ul'],      // EX Magma vs Aqua + Unleashed
+   92: ['lm'],              // EX Legend Maker
+  101: ['sv6', 'hl', 'df', 'plb'],  // Mask of Change JP + EX Hidden Legends + Dragon Frontiers + Plasma Blast
+  // ── Neo Era EN ─────────────────────────────────────────────────────────────
+  111: ['cinv', 'n1', 'rr'],  // Crimson Invasion + Neo Genesis + Team Rocket Returns
+  105: ['n4'],              // Neo Destiny
+   75: ['n2'],              // Neo Discovery
+  // ── Vintage EN ─────────────────────────────────────────────────────────────
+   82: ['tr'],              // Team Rocket
+  110: ['lc', 'hp'],        // Legendary Collection + Holon Phantoms
+  144: ['skg'],             // Skyridge
+   62: ['sv3a', 'fo'],      // SV JP small + Fossil
   // ── SV Era JP small sets ───────────────────────────────────────────────────
-   73: ['sv1a'],
+   73: ['sv1a', 'slg'],     // SV JP small + Shining Legends
    78: ['sv1s', 'sv1v'],
-  165: ['sv2a', 'ex'],  // Pokémon Card 151 JP + Expedition Base Set
+  165: ['sv2a', 'ex'],      // Pokémon Card 151 JP + Expedition Base Set
    71: ['sv2d', 'sv2p', 'sv5k', 'sv5m'],
-   62: ['sv3a'],
   190: ['sv4a'],
    66: ['sv4k', 'sv5a'],
-  // ── SV Era JP full-size sets (CT uses numeric sv/s codes) ─────────────────
-  108: ['sv3', 'evo', 'dex', 'ros', 'pk', 'wcp'],  // Ruler of the Black Flame JP + vintage EN
-  101: ['sv6', 'hl', 'df', 'plb'],  // Mask of Change JP + EX Hidden Legends + EX Dragon Frontiers + Plasma Blast
-  102: ['sv7', 'bs', 'shbs', 'tri'],  // Stellar Miracle JP + Base Set EN + Triumphant
-  106: ['sv8', 'flf', 'em', 'ge'],    // Super Electric Breaker JP + vintage EN
-  100: ['sv9', 's3', 's4', 's8', 's9', 's11'],
-   98: ['sv10'],   // The Glory of Team Rocket (SV10 JP)
+  // ── SV Era JP full-size sets ───────────────────────────────────────────────
+  108: ['sv3', 'evo', 'dex', 'ros', 'pk', 'wcp'],
+  102: ['sv7', 'bs', 'shbs', 'tri'],
+  106: ['sv8', 'flf', 'em', 'ge'],
+  100: ['sv9', 's3', 's4', 's8', 's9', 's11', 'ss', 'cg', 'md'],  // + EX Sandstorm, Crystal Guardians, Majestic Dawn
+   98: ['sv10'],
    28: ['svb'],
-  115: ['cs2a', 'cs2b', 'uf', 'wcd2006'],  // Vivid Portrayals JP + EX Unseen Forces + World Championship Decks 2006
-  // ── Vintage EN (selected sets with distinctive totals) ────────────────────
-  107: ['dx'],     // EX Deoxys
-  111: ['cinv', 'n1', 'rr'],
-  114: ['blw', 'sts'],
-  147: ['bus'],    // Burning Shadows
-   92: ['lm'],    // EX Legend Maker
+  115: ['cs2a', 'cs2b', 'uf', 'wcd2006'],
 }
 
 // ── API helpers ──────────────────────────────────────────────────────────────
