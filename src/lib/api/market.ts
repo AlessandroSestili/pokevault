@@ -32,8 +32,9 @@ export async function searchMarketCards(q: string, limit = 24): Promise<MarketCa
   return res.json()
 }
 
-export async function fetchBlueprintPrice(blueprintId: number): Promise<number | null> {
+export async function fetchBlueprintPrice(blueprintId: number, grade?: number): Promise<number | null> {
   const params = new URLSearchParams({ blueprint_id: String(blueprintId) })
+  if (grade !== undefined) params.set('grade', String(grade))
   const res = await fetch(`/api/market/cards/price?${params}`)
   if (!res.ok) return null
   const data = await res.json()

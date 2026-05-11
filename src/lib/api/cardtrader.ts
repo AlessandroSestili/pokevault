@@ -166,22 +166,65 @@ export async function searchBlueprintsByName(
     })
 }
 
+export const CT_CONDITIONS = ['Near Mint', 'Slightly Played', 'Moderately Played', 'Played', 'Poor'] as const
+export type CTCondition = typeof CT_CONDITIONS[number]
+
+export const CONDITION_MULTIPLIERS: Record<CTCondition, number> = {
+  'Near Mint':          1.00,
+  'Slightly Played':    0.85,
+  'Moderately Played':  0.70,
+  'Played':             0.50,
+  'Poor':               0.25,
+}
+
+export function gradeToCTCondition(grade: number): CTCondition {
+  if (grade >= 9)   return 'Near Mint'
+  if (grade >= 7)   return 'Slightly Played'
+  if (grade >= 5)   return 'Moderately Played'
+  if (grade >= 3)   return 'Played'
+  return 'Poor'
+}
+
+async function fetchMarketplaceProducts(blueprintId: number): Promise<CTProduct[]> {
+  const res = await fetch(`${BASE}/marketplace/products?blueprint_id=${blueprintId}`, {
+    headers: auth(),
+  })
+  if (!res.ok) return []
+  const data: Record<string, CTProduct[]> = await res.json()
+  return data[String(blueprintId)] ?? []
+}
+
+/**
+ * Returns the minimum price in EUR for a blueprint at the given CT condition.
+ * Falls back to NM price × multiplier if no listings found for that condition.
+ */
+export async function getMinPriceForCondition(
+  blueprintId: number,
+  condition: CTCondition
+): Promise<number | null> {
+  const products = await fetchMarketplaceProducts(blueprintId)
+  const available = products.filter(p => !p.on_vacation && p.price_cents > 0)
+
+  const forCondition = available.filter(p => p.properties_hash?.condition === condition)
+  if (forCondition.length) {
+    return Math.min(...forCondition.map(p => p.price_cents)) / 100
+  }
+
+  // Fallback: NM price × multiplier
+  const nmPrices = available
+    .filter(p => p.properties_hash?.condition === 'Near Mint')
+    .map(p => p.price_cents)
+  if (!nmPrices.length) return null
+  const nmPrice = Math.min(...nmPrices) / 100
+  return +(nmPrice * CONDITION_MULTIPLIERS[condition]).toFixed(2)
+}
+
 /**
  * Returns the minimum Near Mint price in EUR for a blueprint.
  * Skips vacationing sellers and non-NM listings.
  */
 export async function getMinNMPrice(blueprintId: number): Promise<number | null> {
-  const res = await fetch(`${BASE}/marketplace/products?blueprint_id=${blueprintId}`, {
-    headers: auth(),
-  })
-  if (!res.ok) return null
-  const data: Record<string, CTProduct[]> = await res.json()
-  const products = data[String(blueprintId)] ?? []
-  const prices = products
-    .filter(p => p.properties_hash?.condition === 'Near Mint' && !p.on_vacation && p.price_cents > 0)
-    .map(p => p.price_cents)
-  if (!prices.length) return null
-  return Math.min(...prices) / 100
+  return getMinPriceForCondition(blueprintId, 'Near Mint')
 }
 
 // ── Result shape ─────────────────────────────────────────────────────────────

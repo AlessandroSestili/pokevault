@@ -114,10 +114,21 @@ export function AddCardModal({
     // Fetch live price from CT marketplace
     if (card.cardtrader_blueprint_id) {
       setFetchingPrice(true)
-      const price = await fetchBlueprintPrice(card.cardtrader_blueprint_id)
+      const grade = parseFloat(form.condition) || 10
+      const price = await fetchBlueprintPrice(card.cardtrader_blueprint_id, grade)
       if (price !== null) setForm(f => ({ ...f, current: price.toFixed(2) }))
       setFetchingPrice(false)
     }
+  }
+
+  async function refetchPriceForGrade(grade: string) {
+    if (!selected?.cardtrader_blueprint_id) return
+    const g = parseFloat(grade)
+    if (isNaN(g)) return
+    setFetchingPrice(true)
+    const price = await fetchBlueprintPrice(selected.cardtrader_blueprint_id, g)
+    if (price !== null) setForm(f => ({ ...f, current: price.toFixed(2) }))
+    setFetchingPrice(false)
   }
 
   function clearSelected() {
@@ -336,7 +347,14 @@ export function AddCardModal({
               </div>
               <div className="field">
                 <label>Grado</label>
-                <input type="number" step="0.5" min="1" max="10" value={form.condition} onChange={e => upd('condition', e.target.value)} />
+                <input
+                  type="number" step="0.5" min="1" max="10"
+                  value={form.condition}
+                  onChange={e => {
+                    upd('condition', e.target.value)
+                    refetchPriceForGrade(e.target.value)
+                  }}
+                />
               </div>
               <div className="field">
                 <label>Lingua</label>
