@@ -7,6 +7,51 @@ import type { MarketCard } from '@/lib/api/market'
 import { searchMarketCards, fetchBlueprintPrice } from '@/lib/api/market'
 import { addCardAction, uploadCardImageAction } from '@/lib/actions'
 
+const POKEAPI_TYPE_MAP: Record<string, string> = {
+  fire: 'fire', water: 'water', grass: 'grass', electric: 'lightning',
+  psychic: 'psychic', ice: 'water', dragon: 'dragon', dark: 'darkness',
+  steel: 'metal', fairy: 'fairy', fighting: 'fighting', poison: 'psychic',
+  ghost: 'psychic', rock: 'fighting', ground: 'fighting',
+  bug: 'grass', flying: 'colorless', normal: 'colorless',
+}
+
+const STRIP_TCG  = /\s+(ex|EX|GX|V|VMAX|VSTAR|Star|Prime|Radiant|Lv\.\d+|TAG TEAM|Prism Star|Legend|\(.*?\))$/i
+const STRIP_OWNER = /^(?:(?:Giovanni|Misty|Brock|Lt\.?\s*Surge|Erika|Koga|Blaine|Sabrina|Janine|Norman|Rika|Roark|Shauntal|Mela|Larry|Tulip|Hop|Iono|N|Team\s+\w+)\s*'s?\s+|Dark\s+|Light\s+|Shadow\s+)/i
+const REGIONAL   = /^(Hisuian|Paldean|Galarian|Alolan)\s+(.+)/i
+const REGIONAL_SLUG: Record<string, string> = { hisuian: 'hisui', paldean: 'paldea', galarian: 'galar', alolan: 'alola' }
+
+function toSlug(s: string) {
+  return s.toLowerCase().replace(/[''\.]/g, '').replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+}
+
+async function fetchPokemonElement(rawName: string): Promise<string> {
+  const base = STRIP_TCG.exec(rawName)?.[0] ? rawName.replace(STRIP_TCG, '').trim() : rawName.trim()
+  const stripped = STRIP_OWNER.test(base) ? base.replace(STRIP_OWNER, '').trim() : base
+  const regionalMatch = REGIONAL.exec(stripped)
+
+  const slugs: string[] = []
+  if (regionalMatch) {
+    const suffix = REGIONAL_SLUG[regionalMatch[1].toLowerCase()] ?? regionalMatch[1].toLowerCase()
+    slugs.push(toSlug(regionalMatch[2]) + '-' + suffix, toSlug(regionalMatch[2]))
+  }
+  if (stripped !== base) slugs.push(toSlug(stripped))
+  slugs.push(toSlug(base))
+  const FORM_FALLBACKS = ['-incarnate', '-solo', '-midday', '-baile', '-altered', '-male', '-red-meteor']
+
+  for (const slug of slugs) {
+    for (const suffix of ['', ...FORM_FALLBACKS]) {
+      try {
+        const r = await fetch(`https://pokeapi.co/api/v2/pokemon/${slug}${suffix}`)
+        if (!r.ok) continue
+        const data = await r.json()
+        const primary: string = data.types?.[0]?.type?.name ?? 'normal'
+        return POKEAPI_TYPE_MAP[primary] ?? 'colorless'
+      } catch { /* try next */ }
+    }
+  }
+  return 'colorless'
+}
+
 const LANGUAGES: Language[] = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
 const SOURCES: Source[] = ['CardTrader', 'Cardmarket', 'eBay', 'TCGPlayer', 'Negozio locale', 'Scambio', 'Asta', 'Altro']
 const RARITIES = ['Common', 'Uncommon', 'Rare', 'Holo Rare', 'Ultra Rare', 'Secret Rare']
@@ -111,14 +156,20 @@ export function AddCardModal({
       source: 'CardTrader' as Source,
     }))
 
-    // Fetch live price from CT marketplace
-    if (card.cardtrader_blueprint_id) {
-      setFetchingPrice(true)
-      const grade = parseFloat(form.condition) || 10
-      const price = await fetchBlueprintPrice(card.cardtrader_blueprint_id, grade)
-      if (price !== null) setForm(f => ({ ...f, current: price.toFixed(2) }))
-      setFetchingPrice(false)
-    }
+    // Fetch element and price in parallel
+    const [element, price] = await Promise.all([
+      fetchPokemonElement(card.name),
+      card.cardtrader_blueprint_id
+        ? (setFetchingPrice(true), fetchBlueprintPrice(card.cardtrader_blueprint_id, parseFloat(form.condition) || 10))
+        : Promise.resolve(null),
+    ])
+
+    setForm(f => ({
+      ...f,
+      element,
+      ...(price !== null ? { current: price.toFixed(2) } : {}),
+    }))
+    setFetchingPrice(false)
   }
 
   async function refetchPriceForGrade(grade: string) {
