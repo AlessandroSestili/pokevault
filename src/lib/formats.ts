@@ -1,5 +1,5 @@
 export function formatEur(value: number): string {
-  return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(value)
+  return '€' + value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 export function formatPct(value: number, showSign = true): string {
