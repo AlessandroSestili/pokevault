@@ -216,7 +216,7 @@ const CT_TO_PTCG: Record<string, string> = {
   cel2:'sm7', lon:'sm8', teu:'sm9', cob:'sm10', u:'sm11', sma:'sma',
   // XY
   xy1:'xy1', fl:'xy2', ph:'xy3', rr:'xy4', prc:'xy5', bf:'xy6',
-  ao:'xy7', bk:'xy8', bw:'xy9', fco:'xy10', sts:'xy11', ev:'xy12',
+  ao:'xy7', bk:'xy8', fco:'xy10', sts:'xy11', ev:'xy12',
   // Black & White
   bw1:'bw1', ep:'bw2', nv:'bw3', de:'bw4', pl2:'bw5', bc:'bw6',
   pl3:'bw7', pl4:'bw8', lc2:'bw9', ps:'bw10', bc2:'bw11', bw:'bwp',

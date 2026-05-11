@@ -25,6 +25,13 @@ export interface MarketPricePoint {
   scraped_at: string
 }
 
+export async function searchCardTrader(q: string, limit = 20): Promise<MarketCard[]> {
+  const params = new URLSearchParams({ q, limit: String(limit) })
+  const res = await fetch(`/api/market/cards/search-ct?${params}`)
+  if (!res.ok) return []
+  return res.json()
+}
+
 export async function searchMarketCards(
   q: string,
   lang?: string,

@@ -1,3 +1,4 @@
+export {}
 async function main() {
   const res = await fetch('https://api.pokemontcg.io/v2/cards?q=set.id:sv3&pageSize=5&select=name,number')
   const json = await res.json()

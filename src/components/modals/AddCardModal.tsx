@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition, useRef } from 'react'
 import { X, Search, Loader2, Plus, ChevronDown, Camera } from 'lucide-react'
 import type { Language, Source } from '@/types'
 import type { MarketCard } from '@/lib/api/market'
-import { searchMarketCards } from '@/lib/api/market'
+import { searchMarketCards, searchCardTrader } from '@/lib/api/market'
 import { addCardAction, uploadCardImageAction } from '@/lib/actions'
 
 const LANGUAGES: Language[] = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
@@ -45,6 +45,7 @@ const DEFAULT_FORM = {
 }
 
 export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [source, setSource] = useState<'db' | 'ct'>('db')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<MarketCard[]>([])
   const [visibleCount, setVisibleCount] = useState(PAGE)
@@ -62,7 +63,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
       setTimeout(() => {
         setQuery(''); setResults([]); setSelected(null)
         setForm({ ...DEFAULT_FORM }); setError(null); setVisibleCount(PAGE)
-        setImageUploading(false)
+        setImageUploading(false); setSource('db')
       }, 300)
     }
   }, [open])
@@ -77,8 +78,9 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     if (!dq.trim() || dq.length < 2) { setResults([]); return }
     setSearching(true)
     setVisibleCount(PAGE)
-    searchMarketCards(dq, undefined, 40).then(r => { setResults(r); setSearching(false) })
-  }, [dq])
+    const fn = source === 'ct' ? searchCardTrader(dq, 40) : searchMarketCards(dq, undefined, 40)
+    fn.then(r => { setResults(r); setSearching(false) })
+  }, [dq, source])
 
   function selectCard(card: MarketCard) {
     setError(null)
@@ -170,6 +172,16 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
 
         <form onSubmit={handleSubmit}>
           <div className="modal__body">
+            {/* Source toggle */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+              <button type="button" className={'chip' + (source === 'db' ? ' is-active' : '')} onClick={() => { setSource('db'); setResults([]); setQuery('') }}>
+                Nostro DB
+              </button>
+              <button type="button" className={'chip' + (source === 'ct' ? ' is-active' : '')} onClick={() => { setSource('ct'); setResults([]); setQuery('') }}>
+                Live CardTrader
+              </button>
+            </div>
+
             {/* Search */}
             <div className="field" style={{ position: 'relative' }}>
               <label>Cerca carta (opzionale)</label>

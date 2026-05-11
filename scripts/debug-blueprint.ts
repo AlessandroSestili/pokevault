@@ -1,5 +1,6 @@
 // Run: npx tsx scripts/debug-blueprint.ts
 // Shows raw CardTrader blueprint fields for first expansion
+export {}
 
 const TOKEN = process.env.CARDTRADER_TOKEN!
 const BASE = 'https://api.cardtrader.com/api/v2'
