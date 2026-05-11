@@ -101,7 +101,7 @@ export const TOTAL_TO_CODES: Record<number, string[]> = {
    66: ['sv4k', 'sv5a'],
   // ── SV Era JP full-size sets (CT uses numeric sv/s codes) ─────────────────
   108: ['sv3', 'evo', 'dex', 'ros', 'pk', 'wcp'],  // Ruler of the Black Flame JP + vintage EN
-  101: ['sv6'],
+  101: ['sv6', 'hl', 'df', 'plb'],  // Mask of Change JP + EX Hidden Legends + EX Dragon Frontiers + Plasma Blast
   102: ['sv7', 'bs', 'shbs', 'tri'],  // Stellar Miracle JP + Base Set EN + Triumphant
   106: ['sv8', 'flf', 'em', 'ge'],    // Super Electric Breaker JP + vintage EN
   100: ['sv9', 's3', 's4', 's8', 's9', 's11'],
