@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Image from 'next/image'
 import { Search, Loader2, Plus } from 'lucide-react'
-import type { PokemonTcgCard } from '@/types'
-import { searchCards } from '@/lib/api/pokemontcg'
-import { AddCardModal } from '@/components/collection/AddCardModal'
+import type { MarketCard } from '@/lib/api/market'
+import { searchMarketCards } from '@/lib/api/market'
+import { AddCardModal } from '@/components/modals/AddCardModal'
 
 function useDebounce<T>(value: T, ms: number): T {
   const [d, setD] = useState(value)
@@ -18,23 +17,23 @@ function useDebounce<T>(value: T, ms: number): T {
 
 export function SearchShell() {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<PokemonTcgCard[]>([])
+  const [results, setResults] = useState<MarketCard[]>([])
   const [searching, setSearching] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
-  const [preselected, setPreselected] = useState<PokemonTcgCard | null>(null)
+  const [preselected, setPreselected] = useState<MarketCard | null>(null)
 
   const debouncedQuery = useDebounce(query, 400)
 
   useEffect(() => {
     if (!debouncedQuery.trim() || debouncedQuery.length < 2) { setResults([]); return }
     setSearching(true)
-    searchCards(debouncedQuery).then(r => {
-      setResults(r.slice(0, 24))
+    searchMarketCards(debouncedQuery, 24).then(r => {
+      setResults(r)
       setSearching(false)
     })
   }, [debouncedQuery])
 
-  function openAdd(card: PokemonTcgCard) {
+  function openAdd(card: MarketCard) {
     setPreselected(card)
     setAddOpen(true)
   }
@@ -42,7 +41,6 @@ export function SearchShell() {
   return (
     <>
       <div className="flex-1 pb-nav">
-        {/* Mobile topbar */}
         <div
           className="sticky top-0 z-40 md:hidden px-4 pt-4 pb-3"
           style={{ background: 'rgba(11, 13, 18, 0.95)', backdropFilter: 'blur(20px)' }}
@@ -54,7 +52,6 @@ export function SearchShell() {
         </div>
 
         <div className="px-4 md:px-8 py-4 max-w-[1400px] mx-auto space-y-5">
-          {/* Desktop search */}
           <div className="hidden md:block">
             <SearchInput query={query} setQuery={setQuery} searching={searching} />
           </div>
@@ -67,7 +64,7 @@ export function SearchShell() {
 
           {results.length === 0 && debouncedQuery.length < 2 && (
             <p className="text-center font-mono text-[13px] py-16" style={{ color: 'var(--text-2)' }}>
-              Cerca una carta per nome o set
+              Cerca per nome (Charizard), codice set (PAR-191) o numero (193/182)
             </p>
           )}
 
@@ -107,7 +104,7 @@ function SearchInput({
         autoFocus
         value={query}
         onChange={e => setQuery(e.target.value)}
-        placeholder="Nome, codice (sv6-012) o numero (4/102)..."
+        placeholder="Nome (Charizard), codice (PAR-191), numero (193/182)..."
         className="w-full pl-8 pr-8 py-2.5 rounded-xl font-mono text-[13px] outline-none"
         style={{ background: 'var(--bg-1)', border: '1px solid var(--border)', color: 'var(--text-0)' }}
       />
@@ -115,15 +112,16 @@ function SearchInput({
   )
 }
 
-function SearchCard({ card, onAdd }: { card: PokemonTcgCard; onAdd: () => void }) {
+function SearchCard({ card, onAdd }: { card: MarketCard; onAdd: () => void }) {
   return (
     <div
       className="glass rounded-2xl overflow-hidden flex flex-col"
       style={{ border: '1px solid var(--border)' }}
     >
-      {card.images?.small ? (
+      {card.image_url ? (
         <div className="relative w-full aspect-[2.5/3.5] bg-white/[0.02]">
-          <Image src={card.images.small} alt={card.name} fill sizes="200px" className="object-contain p-2" unoptimized />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={card.image_url} alt={card.name} className="w-full h-full object-contain p-2" />
         </div>
       ) : (
         <div className="w-full aspect-[2.5/3.5] flex items-center justify-center" style={{ background: 'var(--bg-2)' }}>
@@ -134,13 +132,8 @@ function SearchCard({ card, onAdd }: { card: PokemonTcgCard; onAdd: () => void }
         <div>
           <p className="font-display font-medium text-[13px] leading-snug" style={{ color: 'var(--text-0)' }}>{card.name}</p>
           <p className="font-mono text-[10px] mt-0.5" style={{ color: 'var(--text-2)' }}>
-            {card.set.name} · {card.number}
+            {card.set_name}{card.number ? ` · ${card.number}` : ''} · {card.language}
           </p>
-          {card.cardmarket?.prices.trendPrice ? (
-            <p className="font-mono text-[11px] mt-1" style={{ color: 'var(--accent)' }}>
-              ~€{card.cardmarket.prices.trendPrice.toFixed(2)}
-            </p>
-          ) : null}
         </div>
         <button
           onClick={onAdd}

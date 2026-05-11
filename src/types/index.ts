@@ -7,11 +7,11 @@ export type Condition =
   | 5 | 5.5 | 6 | 6.5 | 7 | 7.5 | 8 | 8.5
   | 9 | 9.5 | 10;
 
-export type Source = "Cardmarket" | "eBay" | "TCGPlayer" | "Scambio" | "Negozio locale" | "Asta" | "Altro";
+export type Source = "CardTrader" | "Cardmarket" | "eBay" | "TCGPlayer" | "Scambio" | "Negozio locale" | "Asta" | "Altro";
 
 export type PriceSource = "cardmarket" | "tcgplayer";
 
-export type ApiSource = "pokemontcg" | "tcgdex" | "manual";
+export type ApiSource = "pokemontcg" | "tcgdex" | "cardtrader" | "manual";
 
 // A card in the user's collection (stored in Supabase)
 export interface CollectionCard {

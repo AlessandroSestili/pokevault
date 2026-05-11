@@ -3,7 +3,7 @@ export interface MarketCard {
   name: string
   set_name: string
   set_code: string
-  number: string
+  number: string | null
   rarity: string | null
   language: string
   image_url: string | null
@@ -25,41 +25,22 @@ export interface MarketPricePoint {
   scraped_at: string
 }
 
-export async function searchCardTrader(q: string, limit = 20): Promise<MarketCard[]> {
+export async function searchMarketCards(q: string, limit = 24): Promise<MarketCard[]> {
   const params = new URLSearchParams({ q, limit: String(limit) })
-  const res = await fetch(`/api/market/cards/search-ct?${params}`)
-  if (!res.ok) return []
-  return res.json()
-}
-
-export async function searchMarketCards(
-  q: string,
-  lang?: string,
-  limit = 20
-): Promise<MarketCard[]> {
-  const params = new URLSearchParams({ q, limit: String(limit) })
-  if (lang) params.set('lang', lang)
   const res = await fetch(`/api/market/cards/search?${params}`)
   if (!res.ok) return []
   return res.json()
 }
 
-export async function fetchMarketPrice(
-  name: string,
-  setCode?: string | null,
-  lang = 'EN'
-): Promise<number | null> {
-  const params = new URLSearchParams({ name, lang })
-  if (setCode) params.set('set_code', setCode)
+export async function fetchBlueprintPrice(blueprintId: number): Promise<number | null> {
+  const params = new URLSearchParams({ blueprint_id: String(blueprintId) })
   const res = await fetch(`/api/market/cards/price?${params}`)
   if (!res.ok) return null
   const data = await res.json()
   return data.price ?? null
 }
 
-export async function fetchMarketPriceHistory(
-  cardId: string
-): Promise<MarketPricePoint[]> {
+export async function fetchMarketPriceHistory(cardId: string): Promise<MarketPricePoint[]> {
   const res = await fetch(`/api/market/cards/${cardId}/prices`)
   if (!res.ok) return []
   return res.json()

@@ -9,7 +9,7 @@ import { computePortfolioTotals } from '@/lib/totals'
 import { StatsBar } from './StatsBar'
 import { CardGrid } from './CardGrid'
 import { CardDetailSheet } from './CardDetailSheet'
-import { AddCardModal } from './AddCardModal'
+import { AddCardModal } from '@/components/modals/AddCardModal'
 import { BottomNav } from '@/components/layout/BottomNav'
 
 const DEFAULT_FILTERS: CardFilters = {

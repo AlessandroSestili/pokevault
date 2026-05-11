@@ -4,8 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from './supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { insertCard, updateCard, deleteCard, upsertPriceSnapshot } from './queries'
-import { searchJapaneseCards } from './api/justtcg'
-import type { JustTcgSearchResult } from './api/justtcg'
 import type { CollectionCard, Language, Source } from '@/types'
 
 
@@ -53,9 +51,6 @@ export async function syncMarketPricesAction(): Promise<{
   return { updated, notFound, notFoundCards }
 }
 
-export async function searchJapaneseCardsAction(query: string): Promise<JustTcgSearchResult[]> {
-  return searchJapaneseCards(query)
-}
 
 export async function uploadCardImageAction(formData: FormData): Promise<string | null> {
   const file = formData.get('file') as File | null
@@ -190,7 +185,7 @@ export async function deleteCardAction(id: string): Promise<boolean> {
 }
 
 const VALID_LANGUAGES = new Set(['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH'])
-const VALID_SOURCES = new Set(['Cardmarket', 'eBay', 'TCGPlayer', 'Negozio locale', 'Scambio', 'Asta', 'Altro'])
+const VALID_SOURCES = new Set(['CardTrader', 'Cardmarket', 'eBay', 'TCGPlayer', 'Negozio locale', 'Scambio', 'Asta', 'Altro'])
 
 export async function importCardsAction(
   rows: Array<Record<string, string>>

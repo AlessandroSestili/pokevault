@@ -4,11 +4,11 @@ import { useState, useEffect, useTransition, useRef } from 'react'
 import { X, Search, Loader2, Plus, ChevronDown, Camera } from 'lucide-react'
 import type { Language, Source } from '@/types'
 import type { MarketCard } from '@/lib/api/market'
-import { searchMarketCards, searchCardTrader } from '@/lib/api/market'
+import { searchMarketCards, fetchBlueprintPrice } from '@/lib/api/market'
 import { addCardAction, uploadCardImageAction } from '@/lib/actions'
 
 const LANGUAGES: Language[] = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
-const SOURCES: Source[] = ['Cardmarket', 'eBay', 'TCGPlayer', 'Negozio locale', 'Scambio', 'Asta', 'Altro']
+const SOURCES: Source[] = ['CardTrader', 'Cardmarket', 'eBay', 'TCGPlayer', 'Negozio locale', 'Scambio', 'Asta', 'Altro']
 const RARITIES = ['Common', 'Uncommon', 'Rare', 'Holo Rare', 'Ultra Rare', 'Secret Rare']
 
 const ELEMENTS = [
@@ -44,12 +44,20 @@ const DEFAULT_FORM = {
   api_id: null as string | null,
 }
 
-export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [source, setSource] = useState<'db' | 'ct'>('db')
+export function AddCardModal({
+  open,
+  onClose,
+  preselected,
+}: {
+  open: boolean
+  onClose: () => void
+  preselected?: MarketCard | null
+}) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<MarketCard[]>([])
   const [visibleCount, setVisibleCount] = useState(PAGE)
   const [searching, setSearching] = useState(false)
+  const [fetchingPrice, setFetchingPrice] = useState(false)
   const [selected, setSelected] = useState<MarketCard | null>(null)
   const [form, setForm] = useState({ ...DEFAULT_FORM })
   const [isPending, startTransition] = useTransition()
@@ -59,13 +67,17 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
   const dq = useDebounce(query, 400)
 
   useEffect(() => {
+    if (open && preselected) {
+      selectCard(preselected)
+    }
     if (!open) {
       setTimeout(() => {
         setQuery(''); setResults([]); setSelected(null)
         setForm({ ...DEFAULT_FORM }); setError(null); setVisibleCount(PAGE)
-        setImageUploading(false); setSource('db')
+        setImageUploading(false); setFetchingPrice(false)
       }, 300)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   useEffect(() => {
@@ -78,26 +90,34 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
     if (!dq.trim() || dq.length < 2) { setResults([]); return }
     setSearching(true)
     setVisibleCount(PAGE)
-    const fn = source === 'ct' ? searchCardTrader(dq, 40) : searchMarketCards(dq, undefined, 40)
-    fn.then(r => { setResults(r); setSearching(false) })
-  }, [dq, source])
+    searchMarketCards(dq, 40).then(r => { setResults(r); setSearching(false) })
+  }, [dq])
 
-  function selectCard(card: MarketCard) {
+  async function selectCard(card: MarketCard) {
     setError(null)
     setSelected(card)
+    setQuery('')
+    setResults([])
     setForm(f => ({
       ...f,
       name: card.name,
       set_name: card.set_name,
       card_number: card.number ?? '',
       rarity: card.rarity ?? f.rarity,
-      current: card.price?.price_low ? card.price.price_low.toFixed(2) : '',
+      current: '',
       image_url: card.image_url,
       api_id: card.id,
       language: (card.language?.toUpperCase() as Language) ?? f.language,
+      source: 'CardTrader' as Source,
     }))
-    setQuery('')
-    setResults([])
+
+    // Fetch live price from CT marketplace
+    if (card.cardtrader_blueprint_id) {
+      setFetchingPrice(true)
+      const price = await fetchBlueprintPrice(card.cardtrader_blueprint_id)
+      if (price !== null) setForm(f => ({ ...f, current: price.toFixed(2) }))
+      setFetchingPrice(false)
+    }
   }
 
   function clearSelected() {
@@ -139,7 +159,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
         set_code: (form.set_name || '').toUpperCase().slice(0, 6),
         card_number: form.card_number,
         api_id: form.api_id,
-        api_source: 'manual',
+        api_source: form.api_id ? 'cardtrader' : 'manual',
         image_url: form.image_url,
         element: form.element || null,
         rarity: form.rarity || null,
@@ -165,23 +185,13 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
         <div className="modal__head">
           <div>
             <h3>Aggiungi carta</h3>
-            <p>Cerca nel catalogo o inserisci manualmente.</p>
+            <p>Cerca nel catalogo CardTrader o inserisci manualmente.</p>
           </div>
           <button className="sheet__close" style={{ marginLeft: 'auto' }} onClick={onClose}><X size={14} /></button>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="modal__body">
-            {/* Source toggle */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
-              <button type="button" className={'chip' + (source === 'db' ? ' is-active' : '')} onClick={() => { setSource('db'); setResults([]); setQuery('') }}>
-                Nostro DB
-              </button>
-              <button type="button" className={'chip' + (source === 'ct' ? ' is-active' : '')} onClick={() => { setSource('ct'); setResults([]); setQuery('') }}>
-                Live CardTrader
-              </button>
-            </div>
-
             {/* Search */}
             <div className="field" style={{ position: 'relative' }}>
               <label>Cerca carta (opzionale)</label>
@@ -191,7 +201,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                 <input
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  placeholder="Nome carta (es. Charizard)..."
+                  placeholder="Nome (Charizard), codice (PAR-191), numero (193/182)..."
                   style={{ paddingLeft: 34, paddingRight: searching ? 34 : undefined }}
                 />
               </div>
@@ -211,10 +221,9 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
                         <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>
                           {card.set_name}{card.set_code ? ` (${card.set_code})` : ''}{card.number ? ` · ${card.number}` : ''}{card.rarity ? ` · ${card.rarity}` : ''}
                         </div>
-                        {card.price?.price_low
-                          ? <div style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>~€{card.price.price_low.toFixed(2)}</div>
-                          : <div style={{ fontSize: 10, color: 'var(--neg)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>nessun prezzo disponibile</div>
-                        }
+                        <div style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--font-jetbrains)', marginTop: 2 }}>
+                          {card.language}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -353,15 +362,17 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
             <div className="field">
               <label>
                 Valore corrente (€)
-                {selected && form.current && <span style={{ color: 'var(--pos)', marginLeft: 6, fontSize: 10 }}>· da CardTrader</span>}
-                {selected && !form.current && <span style={{ color: 'var(--lightning, #FFCB2E)', marginLeft: 6, fontSize: 10 }}>· inserisci manualmente</span>}
+                {fetchingPrice && <span style={{ color: 'var(--ink-3)', marginLeft: 6, fontSize: 10 }}>· carico prezzo CT...</span>}
+                {selected && form.current && !fetchingPrice && <span style={{ color: 'var(--pos)', marginLeft: 6, fontSize: 10 }}>· da CardTrader live</span>}
+                {selected && !form.current && !fetchingPrice && <span style={{ color: 'var(--lightning, #FFCB2E)', marginLeft: 6, fontSize: 10 }}>· inserisci manualmente</span>}
               </label>
               <input
                 type="number" step="0.01" min="0"
                 value={form.current}
                 onChange={e => upd('current', e.target.value)}
                 placeholder="es. 12.50"
-                style={selected && !form.current ? { borderColor: '#FFCB2E' } : undefined}
+                disabled={fetchingPrice}
+                style={selected && !form.current && !fetchingPrice ? { borderColor: '#FFCB2E' } : undefined}
               />
             </div>
 
@@ -370,7 +381,7 @@ export function AddCardModal({ open, onClose }: { open: boolean; onClose: () => 
 
           <div className="modal__foot">
             <button type="button" className="btn btn--ghost" onClick={onClose}>Annulla</button>
-            <button type="submit" className="btn btn--primary" disabled={isPending}>
+            <button type="submit" className="btn btn--primary" disabled={isPending || fetchingPrice}>
               <Plus size={13} />
               {isPending ? 'Salvo...' : 'Aggiungi alla collezione'}
             </button>
