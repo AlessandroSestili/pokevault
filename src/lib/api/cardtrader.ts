@@ -203,8 +203,8 @@ export function blueprintToResult(
   expansionCode: string,
   expansionName: string
 ): CTSearchResult {
-  // version is "010/182" or "Ultra Rare | 010/182"
-  const numMatch = (b.version ?? '').match(/(\d+\/\d+)/)
+  // version is "010/182", "Ultra Rare | 010/182", or "Illustration Rare | GG16/GG70"
+  const numMatch = (b.version ?? '').match(/([A-Z]*\d+\/[A-Z]*\d+)/i)
   const number = numMatch ? numMatch[1] : (b.fixed_properties?.collector_number ?? null)
   const rarity = b.fixed_properties?.pokemon_rarity ?? null
 

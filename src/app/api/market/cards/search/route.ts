@@ -8,6 +8,12 @@ import {
   type CTExpansion,
 } from '@/lib/api/cardtrader'
 
+// Subset prefix → expansion codes (Gallery/Trainer Gallery subsets)
+const PREFIX_TO_CODES: Record<string, string[]> = {
+  'GG': ['crz'],              // Crown Zenith Galarian Gallery (GG01–GG70)
+  'TG': ['brs', 'astr', 'lorg', 'sit'], // Trainer Gallery (TG01–TG30 across SWSH sets)
+}
+
 export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get('q') ?? '').trim()
   const limit = Math.min(parseInt(req.nextUrl.searchParams.get('limit') ?? '24'), 40)
@@ -67,7 +73,35 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(groups.flat().slice(0, limit))
   }
 
-  // Pattern 3: name search — live CT call + cached expansions map
+  // Pattern 4: "GG02/GG70", "TG01/TG30" — subset prefix + number format
+  const alphaPrefixMatch = q.match(/^([A-Za-z]+)(\d+)\/([A-Za-z]+\d+)$/i)
+  if (alphaPrefixMatch) {
+    const prefix = alphaPrefixMatch[1].toUpperCase()
+    const numStr = alphaPrefixMatch[2]
+    const collectorNumber = `${prefix}${numStr.padStart(2, '0')}`
+
+    const codes = PREFIX_TO_CODES[prefix] ?? []
+    if (codes.length) {
+      const expansions = await getExpansions()
+      const targets = codes
+        .map(c => ({ code: c, exp: expansions.get(c) }))
+        .filter((x): x is { code: string; exp: CTExpansion } => x.exp != null)
+
+      const groups = await Promise.all(
+        targets.map(async ({ code, exp }) => {
+          const blueprints = await getBlueprintsByExpansion(exp.id)
+          return blueprints
+            .filter(b => (b.fixed_properties?.collector_number ?? '') === collectorNumber)
+            .map(b => blueprintToResult(b, code, exp.name))
+        })
+      )
+
+      const flat = groups.flat()
+      if (flat.length) return NextResponse.json(flat.slice(0, limit))
+    }
+  }
+
+  // Pattern 5: name search — live CT call + cached expansions map
   const blueprints = await searchBlueprintsByName(q, limit)
   return NextResponse.json(
     blueprints.map(b => blueprintToResult(b, b.expansion_code, b.expansion_name))
