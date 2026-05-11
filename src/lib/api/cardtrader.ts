@@ -108,7 +108,7 @@ export const TOTAL_TO_CODES: Record<number, string[]> = {
   114: ['blw', 'sts'],      // Black & White + Stormfront
   // ── DP Era EN ──────────────────────────────────────────────────────────────
   130: ['b2', 'dp'],        // Base Set 2 + Diamond & Pearl
-  132: ['sw'],              // Secret Wonders
+  132: ['sw', 'g1', 'g2'],  // Secret Wonders + Gym Heroes + Gym Challenge
   123: ['mt'],              // Mysterious Treasures
   127: ['pl'],              // Platinum
   146: ['la'],              // Legends Awakened
