@@ -56,7 +56,8 @@ export function getCardColors(card: ScryfallCard): MagicColor[] {
 }
 
 // Parse Scryfall type_line → broad card_type bucket
-export function parseCardType(typeLine: string): string {
+export function parseCardType(typeLine: string | null | undefined): string {
+  if (!typeLine) return 'Altro'
   const tl = typeLine.toLowerCase()
   if (tl.includes('creature')) return 'Creatura'
   if (tl.includes('planeswalker')) return 'Planeswalker'

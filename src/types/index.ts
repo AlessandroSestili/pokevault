@@ -179,7 +179,7 @@ export interface ScryfallCard {
   collector_number: string;
   mana_cost: string | null;
   cmc: number;
-  type_line: string;
+  type_line: string | null;
   colors: MagicColor[] | null;
   color_identity: MagicColor[];
   rarity: string;
