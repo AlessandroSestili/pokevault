@@ -19,8 +19,13 @@ async function scryfallFetch<T>(path: string): Promise<T | null> {
 export async function searchMagicCards(query: string, limit = 20): Promise<ScryfallCard[]> {
   if (query.trim().length < 2) return []
 
-  // Scryfall full-text search
-  const q = encodeURIComponent(query.trim())
+  // Detect "SET-NUMBER" or "SET NUMBER" patterns (e.g. "SLD-2013", "MKM 42")
+  const setNumMatch = query.trim().match(/^([A-Za-z0-9]{2,6})[-\s](\d+)$/)
+  const normalized = setNumMatch
+    ? `set:${setNumMatch[1]} cn:${setNumMatch[2]}`
+    : query.trim()
+
+  const q = encodeURIComponent(normalized)
   const data = await scryfallFetch<{ data: ScryfallCard[]; total_cards: number }>(
     `/cards/search?q=${q}&order=released&unique=cards&page=1`
   )

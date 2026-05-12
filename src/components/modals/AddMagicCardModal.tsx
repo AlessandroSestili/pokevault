@@ -190,7 +190,7 @@ export function AddMagicCardModal({ open, onClose }: { open: boolean; onClose: (
                 <input
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  placeholder="Nome carta, set, numero..."
+                  placeholder="Nome carta, set… oppure SLD-2013"
                   // eslint-disable-next-line jsx-a11y/no-autofocus
                   autoFocus
                   style={{
