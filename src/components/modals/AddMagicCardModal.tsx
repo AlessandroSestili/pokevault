@@ -15,6 +15,9 @@ const CONDITION_LABEL: Record<MagicCondition, string> = {
 const CONDITION_COLOR: Record<MagicCondition, string> = {
   NM: '#2DD881', LP: '#FFCB2E', MP: '#FF9A3B', HP: '#FF5B47', DMG: '#B07BFF',
 }
+const CONDITION_MULT: Record<MagicCondition, number> = {
+  NM: 1.0, LP: 0.85, MP: 0.70, HP: 0.50, DMG: 0.25,
+}
 const LANGUAGES = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
 const SOURCES = ['Cardmarket', 'TCGPlayer', 'eBay', 'Negozio locale', 'Scambio', 'Asta', 'Altro']
 const FORMATS = ['Standard', 'Pioneer', 'Modern', 'Legacy', 'Commander', 'Vintage', 'Altro']
@@ -77,18 +80,30 @@ export function AddMagicCardModal({ open, onClose }: { open: boolean; onClose: (
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
+  function calcPrice(card: ScryfallCard, foil: boolean, condition: MagicCondition): string {
+    const nmPrice = getScryfallPrice(card, foil)
+    if (nmPrice == null) return ''
+    return (nmPrice * CONDITION_MULT[condition]).toFixed(2)
+  }
+
   function selectCard(card: ScryfallCard) {
-    const price = getScryfallPrice(card, form.foil)
     setSelected(card)
-    setForm(f => ({ ...f, cost_basis: price != null ? price.toFixed(2) : f.cost_basis }))
+    setForm(f => ({ ...f, cost_basis: calcPrice(card, f.foil, f.condition) }))
     setResults([])
     setQuery('')
   }
 
   function setFoil(foil: boolean) {
     setForm(f => {
-      const price = selected ? getScryfallPrice(selected, foil) : null
-      return { ...f, foil, cost_basis: price != null ? price.toFixed(2) : f.cost_basis }
+      const price = selected ? calcPrice(selected, foil, f.condition) : ''
+      return { ...f, foil, cost_basis: price || f.cost_basis }
+    })
+  }
+
+  function setCondition(condition: MagicCondition) {
+    setForm(f => {
+      const price = selected ? calcPrice(selected, f.foil, condition) : ''
+      return { ...f, condition, cost_basis: price || f.cost_basis }
     })
   }
 
@@ -276,7 +291,7 @@ export function AddMagicCardModal({ open, onClose }: { open: boolean; onClose: (
                   <FieldLabel>Condizione</FieldLabel>
                   <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                     {CONDITIONS.map(c => (
-                      <button key={c} onClick={() => setForm(f => ({ ...f, condition: c }))} title={CONDITION_LABEL[c]} style={{
+                      <button key={c} onClick={() => setCondition(c)} title={CONDITION_LABEL[c]} style={{
                         padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
                         background: form.condition === c ? CONDITION_COLOR[c] + '22' : 'var(--bg-2)',
                         border: `1px solid ${form.condition === c ? CONDITION_COLOR[c] : 'var(--line)'}`,
@@ -302,7 +317,13 @@ export function AddMagicCardModal({ open, onClose }: { open: boolean; onClose: (
                   />
                   {selected.prices.eur && (
                     <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>
-                      Scryfall: €{selected.prices.eur}{selected.prices.eur_foil ? ` · Foil: €${selected.prices.eur_foil}` : ''}
+                      NM: €{selected.prices.eur}
+                      {selected.prices.eur_foil ? ` · Foil NM: €${selected.prices.eur_foil}` : ''}
+                      {form.condition !== 'NM' && (
+                        <span style={{ color: 'var(--ink-3)', marginLeft: 4 }}>
+                          · ×{CONDITION_MULT[form.condition]} per {form.condition}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
