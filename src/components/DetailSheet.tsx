@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { X, Star, Pencil, Trash2 } from 'lucide-react'
 import type { CollectionCardWithPrice, Language, Source } from '@/types'
 import { getElement } from '@/lib/elements'
+import { PokemonTypeIcon } from './ui/PokemonTypeIcon'
 import { AreaChart } from './charts/AreaChart'
 import { deleteCardAction, editCardAction } from '@/lib/actions'
 
@@ -156,12 +157,7 @@ export function DetailSheet({
                 <div style={{ marginBottom: 10 }}>
                   <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Tipo</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{
-                      width: 20, height: 20, borderRadius: '50%',
-                      background: el.color + '22', border: `1.5px solid ${el.color}66`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 10, color: el.color,
-                    }}>{el.glyph}</div>
+                    <PokemonTypeIcon type={card.element} size={22} />
                     <span style={{ fontSize: 13, color: 'var(--ink-1)' }}>{el.label}</span>
                   </div>
                 </div>

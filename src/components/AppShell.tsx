@@ -15,6 +15,7 @@ import { AddCardModal } from './modals/AddCardModal'
 import { ImportCsvModal } from './modals/ImportCsvModal'
 import { MagicCollectionShell } from './magic/MagicCollectionShell'
 import { AddMagicCardModal } from './modals/AddMagicCardModal'
+import { GameLogo } from './ui/GameLogo'
 
 type Page = 'dashboard' | 'collection' | 'watchlist' | 'settings'
 
@@ -175,7 +176,7 @@ export function AppShell({
                   marginBottom: -1,
                 }}
               >
-                <span style={{ fontSize: 15 }}>{g.icon}</span>
+                <GameLogo game={g.id} size={18} />
                 {g.label}
                 {g.disabled && (
                   <span style={{

@@ -5,6 +5,7 @@ import { X, Search, Loader2, ChevronDown, Sparkles } from 'lucide-react'
 import type { ScryfallCard, MagicColor, MagicCondition } from '@/types'
 import { searchMagicCards, getScryfallImage, getScryfallPrice, getCardColors, parseCardType } from '@/lib/api/scryfall'
 import { addMagicCardAction } from '@/lib/actions-magic'
+import { MagicManaIcon } from '@/components/ui/MagicManaIcon'
 
 const CONDITIONS: MagicCondition[] = ['NM', 'LP', 'MP', 'HP', 'DMG']
 const CONDITION_LABEL: Record<MagicCondition, string> = {
@@ -13,13 +14,6 @@ const CONDITION_LABEL: Record<MagicCondition, string> = {
 }
 const CONDITION_COLOR: Record<MagicCondition, string> = {
   NM: '#2DD881', LP: '#FFCB2E', MP: '#FF9A3B', HP: '#FF5B47', DMG: '#B07BFF',
-}
-const COLOR_META: Record<MagicColor, { bg: string; label: string }> = {
-  W: { bg: '#E8DDB5', label: 'Bianco' },
-  U: { bg: '#3B9DFF', label: 'Blu' },
-  B: { bg: '#6B7280', label: 'Nero' },
-  R: { bg: '#FF5B47', label: 'Rosso' },
-  G: { bg: '#37C26B', label: 'Verde' },
 }
 const LANGUAGES = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
 const SOURCES = ['Cardmarket', 'TCGPlayer', 'eBay', 'Negozio locale', 'Scambio', 'Asta', 'Altro']
@@ -251,13 +245,7 @@ export function AddMagicCardModal({ open, onClose }: { open: boolean; onClose: (
                   <div style={{ fontSize: 11, color: 'var(--ink-2)', marginBottom: 8 }}>{selected.type_line}</div>
                   <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                     {selectedColors.map(c => (
-                      <div key={c} title={COLOR_META[c]?.label} style={{
-                        width: 20, height: 20, borderRadius: '50%',
-                        background: COLOR_META[c]?.bg ?? '#8B92A1',
-                        border: '2px solid rgba(0,0,0,0.3)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 8, fontWeight: 800, color: c === 'W' ? '#3B3209' : '#fff',
-                      }}>{c}</div>
+                      <MagicManaIcon key={c} color={c} size={20} />
                     ))}
                     <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 5, background: 'var(--bg-2)', color: 'var(--ink-3)', textTransform: 'capitalize' }}>
                       {selected.rarity}
@@ -382,7 +370,6 @@ export function AddMagicCardModal({ open, onClose }: { open: boolean; onClose: (
 function ScryfallRow({ card, selected, onClick }: { card: ScryfallCard; selected: boolean; onClick: () => void }) {
   const colors = card.colors ?? card.color_identity ?? []
   const imgUrl = card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small
-  const COLOR_BG: Record<string, string> = { W: '#E8DDB5', U: '#3B9DFF', B: '#6B7280', R: '#FF5B47', G: '#37C26B' }
 
   return (
     <div onClick={onClick} style={{
@@ -406,7 +393,7 @@ function ScryfallRow({ card, selected, onClick }: { card: ScryfallCard; selected
         </div>
         <div style={{ display: 'flex', gap: 4, marginTop: 5, alignItems: 'center' }}>
           {colors.slice(0, 5).map(c => (
-            <div key={c} style={{ width: 13, height: 13, borderRadius: '50%', background: COLOR_BG[c] ?? '#8B92A1', border: '1.5px solid rgba(0,0,0,0.3)' }} />
+            <MagicManaIcon key={c} color={c} size={14} />
           ))}
           {card.prices.eur && (
             <span style={{ fontSize: 10, color: 'var(--ink-3)', marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' }}>€{card.prices.eur}</span>

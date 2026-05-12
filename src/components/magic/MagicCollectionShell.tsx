@@ -7,13 +7,10 @@ import { MagicCardItem } from './MagicCardItem'
 import { MagicDetailSheet } from './MagicDetailSheet'
 import { AddMagicCardModal } from '@/components/modals/AddMagicCardModal'
 import { editMagicCardAction } from '@/lib/actions-magic'
+import { MagicManaIcon } from '@/components/ui/MagicManaIcon'
 
 type SortKey = 'recent' | 'alpha' | 'value' | 'cmc'
 
-const COLOR_MAP: Record<MagicColor, { bg: string }> = {
-  W: { bg: '#E8DDB5' }, U: { bg: '#3B9DFF' }, B: { bg: '#6B7280' },
-  R: { bg: '#FF5B47' }, G: { bg: '#37C26B' },
-}
 
 function sortCards(cards: MagicCardWithPrice[], sort: SortKey): MagicCardWithPrice[] {
   const arr = [...cards]
@@ -146,16 +143,15 @@ export function MagicCollectionShell({
                 onClick={() => setColorFilter(colorFilter === c ? null : c)}
                 title={{ W: 'Bianco', U: 'Blu', B: 'Nero', R: 'Rosso', G: 'Verde' }[c]}
                 style={{
-                  width: 26, height: 26, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                  background: COLOR_MAP[c].bg,
+                  width: 26, height: 26, borderRadius: '50%', border: `1.5px solid ${colorFilter === c ? '#7B7CF7' : 'transparent'}`,
+                  cursor: 'pointer', background: 'transparent', padding: 0,
                   opacity: colorFilter && colorFilter !== c ? 0.35 : 1,
-                  boxShadow: colorFilter === c ? `0 0 0 3px ${COLOR_MAP[c].bg}55` : 'none',
+                  boxShadow: colorFilter === c ? '0 0 0 3px rgba(123,124,247,0.3)' : 'none',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 9, fontWeight: 800, color: c === 'W' ? '#3B3209' : '#fff',
                   transition: 'opacity 140ms, box-shadow 140ms',
                 }}
               >
-                {c}
+                <MagicManaIcon color={c} size={22} />
               </button>
             ))}
           </div>

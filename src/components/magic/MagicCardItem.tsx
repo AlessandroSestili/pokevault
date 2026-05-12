@@ -2,14 +2,8 @@
 
 import { Star } from 'lucide-react'
 import type { MagicCardWithPrice, MagicColor } from '@/types'
+import { MagicManaIcon } from '@/components/ui/MagicManaIcon'
 
-const COLOR_MAP: Record<MagicColor, { bg: string; label: string }> = {
-  W: { bg: '#E8DDB5', label: 'W' },
-  U: { bg: '#3B9DFF', label: 'U' },
-  B: { bg: '#6B7280', label: 'B' },
-  R: { bg: '#FF5B47', label: 'R' },
-  G: { bg: '#37C26B', label: 'G' },
-}
 
 const CONDITION_COLOR: Record<string, string> = {
   NM:  '#2DD881',
@@ -130,9 +124,9 @@ export function MagicCardItem({
           {/* Color pips */}
           <div style={{ display: 'flex', gap: 3, flex: 1 }}>
             {colors.length === 0 ? (
-              <ColorPip bg="#8B92A1" label="C" />
+              <MagicManaIcon color="C" size={16} />
             ) : colors.slice(0, 5).map(c => (
-              <ColorPip key={c} bg={COLOR_MAP[c]?.bg ?? '#8B92A1'} label={c} />
+              <MagicManaIcon key={c} color={c} size={16} />
             ))}
           </div>
 
@@ -154,27 +148,12 @@ export function MagicCardItem({
   )
 }
 
-function ColorPip({ bg, label }: { bg: string; label: string }) {
-  return (
-    <div
-      title={label}
-      style={{
-        width: 16, height: 16, borderRadius: '50%',
-        background: bg,
-        border: '1.5px solid rgba(0,0,0,0.35)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 8, fontWeight: 800, color: label === 'W' ? '#3B3209' : '#fff',
-        flexShrink: 0,
-      }}
-    >
-      {label}
-    </div>
-  )
-}
+
+const COLOR_BG: Record<MagicColor, string> = { W: '#E8DDB5', U: '#3B9DFF', B: '#6B7280', R: '#FF5B47', G: '#37C26B' }
 
 function MagicPlaceholder({ colors }: { colors: MagicColor[] }) {
   const primary = colors[0]
-  const bg = primary ? COLOR_MAP[primary].bg : '#4F5568'
+  const bg = primary ? COLOR_BG[primary] : '#4F5568'
   return (
     <div style={{
       width: '100%', height: '100%',

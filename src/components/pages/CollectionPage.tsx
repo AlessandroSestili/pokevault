@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { Plus, Star } from 'lucide-react'
 import type { CollectionCardWithPrice } from '@/types'
 import { CardItem } from '../CardItem'
+import { PokemonTypeIcon } from '../ui/PokemonTypeIcon'
 
 const ELEMENTS = [
   { key: 'fire',      color: '#FF5B47', glyph: '▲', label: 'Fire' },
@@ -117,16 +118,16 @@ export function CollectionPage({
               title={e.label}
               style={{
                 width: 26, height: 26, borderRadius: '50%', cursor: 'pointer',
-                background: e.color + '22',
-                border: `1.5px solid ${elemFilter === e.key ? e.color : e.color + '44'}`,
+                background: 'transparent',
+                border: `1.5px solid ${elemFilter === e.key ? e.color : 'transparent'}`,
                 opacity: elemFilter && elemFilter !== e.key ? 0.35 : 1,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, color: e.color,
+                padding: 0,
                 boxShadow: elemFilter === e.key ? `0 0 0 3px ${e.color}33` : 'none',
                 transition: 'opacity 140ms, box-shadow 140ms',
               } as React.CSSProperties}
             >
-              {e.glyph}
+              <PokemonTypeIcon type={e.key} size={22} />
             </button>
           ))}
         </div>

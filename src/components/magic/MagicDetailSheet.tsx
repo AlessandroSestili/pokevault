@@ -4,14 +4,8 @@ import { useState, useTransition } from 'react'
 import { X, Star, Pencil, Trash2, FlipHorizontal } from 'lucide-react'
 import type { MagicCardWithPrice, MagicColor, MagicCondition } from '@/types'
 import { editMagicCardAction, deleteMagicCardAction } from '@/lib/actions-magic'
+import { MagicManaIcon } from '@/components/ui/MagicManaIcon'
 
-const COLOR_MAP: Record<MagicColor, { bg: string; label: string }> = {
-  W: { bg: '#E8DDB5', label: 'W' },
-  U: { bg: '#3B9DFF', label: 'U' },
-  B: { bg: '#6B7280', label: 'B' },
-  R: { bg: '#FF5B47', label: 'R' },
-  G: { bg: '#37C26B', label: 'G' },
-}
 
 const CONDITIONS: MagicCondition[] = ['NM', 'LP', 'MP', 'HP', 'DMG']
 const CONDITION_LABEL: Record<MagicCondition, string> = {
@@ -190,15 +184,7 @@ export function MagicDetailSheet({
                     <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>Colori</div>
                     <div style={{ display: 'flex', gap: 5 }}>
                       {colors.map(c => (
-                        <div key={c} title={COLOR_MAP[c]?.label} style={{
-                          width: 22, height: 22, borderRadius: '50%',
-                          background: COLOR_MAP[c]?.bg ?? '#8B92A1',
-                          border: '2px solid rgba(0,0,0,0.3)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 9, fontWeight: 800, color: c === 'W' ? '#3B3209' : '#fff',
-                        }}>
-                          {c}
-                        </div>
+                        <MagicManaIcon key={c} color={c} size={22} />
                       ))}
                     </div>
                   </div>

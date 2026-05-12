@@ -3,6 +3,7 @@
 import { Star } from 'lucide-react'
 import type { CollectionCardWithPrice } from '@/types'
 import { getElement } from '@/lib/elements'
+import { PokemonTypeIcon } from './ui/PokemonTypeIcon'
 
 function fmtMoney(v: number | null) {
   if (v == null) return '—'
@@ -139,18 +140,7 @@ export function CardItem({
         {/* Element pip + grade + price */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {/* Element pip */}
-          <div
-            title={el.label}
-            style={{
-              width: 18, height: 18, borderRadius: '50%',
-              background: el.color + '22',
-              border: `1.5px solid ${el.color}66`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 9, color: el.color, flexShrink: 0,
-            }}
-          >
-            {el.glyph}
-          </div>
+          <PokemonTypeIcon type={card.element} size={18} />
 
           {/* Grade */}
           <span style={{
