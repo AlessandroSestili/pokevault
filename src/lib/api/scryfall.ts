@@ -22,7 +22,7 @@ export async function searchMagicCards(query: string, limit = 20): Promise<Scryf
   // Detect "SET-NUMBER" or "SET NUMBER" patterns (e.g. "SLD-2013", "MKM 42")
   const setNumMatch = query.trim().match(/^([A-Za-z0-9]{2,6})[-\s](\d+)$/)
   const normalized = setNumMatch
-    ? `set:${setNumMatch[1]} cn:${setNumMatch[2]}`
+    ? `set:${setNumMatch[1]} cn:${parseInt(setNumMatch[2], 10)}`
     : query.trim()
 
   const q = encodeURIComponent(normalized)
