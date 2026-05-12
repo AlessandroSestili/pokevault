@@ -10,6 +10,7 @@ import {
 
 // User-friendly set code → actual CT expansion code
 const SET_CODE_ALIASES: Record<string, string> = {
+  'sve':   'sveen',    // Scarlet & Violet Energies
   'svp':   'svpromo',  // SV Black Star Promos (SVP 001...)
   'swshp': 'swshbs',   // SWSH Black Star Promos
   'smp':   'smbs',     // SM Black Star Promos
