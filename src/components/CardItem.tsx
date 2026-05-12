@@ -52,7 +52,7 @@ export function CardItem({
             <div className="card__art-bg" />
             <div className="card__art-grid" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={card.image_url!} alt={card.name} className="card__img" />
+            <img src={card.image_url!} alt={card.name} className="card__img" referrerPolicy="no-referrer" />
           </>
         ) : (
           <>
