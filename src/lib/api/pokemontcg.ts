@@ -105,6 +105,17 @@ export async function searchCards(query: string): Promise<PokemonTcgCard[]> {
     results = await queryPokemonTcg(`name:*${parsed.name}*`)
   }
 
+  // For setNum with no results: retry with promo-style number format (e.g. "SVE 5" for sve-005)
+  if (results.length === 0 && parsed.type === 'setNum') {
+    const promoNumber = `${parsed.setId.toUpperCase()} ${parsed.number}`
+    results = await queryPokemonTcg(`set.id:${parsed.setId} number:${promoNumber}`)
+  }
+
+  // For setNum with no number match: browse the whole set so user can pick
+  if (results.length === 0 && parsed.type === 'setNum') {
+    results = await queryPokemonTcg(`set.id:${parsed.setId}`)
+  }
+
   if (results.length > 0) return results
 
   // ── TCGdex fallback ────────────────────────────────────────────────────────
