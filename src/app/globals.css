@@ -272,11 +272,11 @@ input, textarea, select { font-family: inherit; }
 
 /* ── CONTENT ────────────────────────────────────────────────────────────────── */
 .content {
-  overflow: auto;
-  padding: 24px 28px 60px;
+  overflow: hidden;
+  padding: 0;
   position: relative;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,.1) transparent;
+  display: flex;
+  flex-direction: column;
 }
 .content::-webkit-scrollbar { width: 10px; }
 .content::-webkit-scrollbar-thumb {

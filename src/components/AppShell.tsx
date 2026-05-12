@@ -247,6 +247,7 @@ export function AppShell({
               favoritesOnly={page === 'watchlist'}
               onOpenCard={openCard}
               onToggleFav={toggleFav}
+              onAdd={() => setAddOpen(true)}
             />
           )}
           {activeGame === 'magic' && (page === 'dashboard' || page === 'collection' || page === 'watchlist') && (

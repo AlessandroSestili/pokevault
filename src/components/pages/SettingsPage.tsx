@@ -8,6 +8,7 @@ export function SettingsPage() {
   const flip = (k: keyof typeof tg) => setTg({ ...tg, [k]: !tg[k] })
 
   return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px 60px' }}>
     <div className="settings">
       <div className="panel">
         <h3>Mercato & Prezzi</h3>
@@ -62,6 +63,7 @@ export function SettingsPage() {
           </button>
         </div>
       </div>
+    </div>
     </div>
   )
 }

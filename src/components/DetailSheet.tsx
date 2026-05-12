@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { X, Star, Pencil, Trash2, ChevronLeft } from 'lucide-react'
+import { X, Star, Pencil, Trash2 } from 'lucide-react'
 import type { CollectionCardWithPrice, Language, Source } from '@/types'
-import { getElement, getInitials } from '@/lib/elements'
+import { getElement } from '@/lib/elements'
 import { AreaChart } from './charts/AreaChart'
 import { deleteCardAction, editCardAction } from '@/lib/actions'
 
@@ -46,69 +46,45 @@ export function DetailSheet({
   const [notes, setNotes] = useState('')
   const [editError, setEditError] = useState<string | null>(null)
 
-  if (!card) {
-    return (
-      <>
-        <div className={'scrim' + (open ? ' is-open' : '')} onClick={onClose} />
-        <div className="sheet" />
-      </>
-    )
-  }
+  const el = card ? getElement(card.element) : null
+  const pl = card ? (card.market_price ?? 0) - card.cost_basis : 0
+  const plPct = card?.cost_basis ? (pl / card.cost_basis) * 100 : 0
 
-  const el = getElement(card.element)
-  const initials = getInitials(card.name)
-  const pl = (card.market_price ?? 0) - card.cost_basis
-  const plPct = card.cost_basis > 0 ? (pl / card.cost_basis) * 100 : 0
-
-  const allHistory = card.price_history.map(s => s.price_eur)
-  const chartValues =
-    range === '7d'  ? allHistory.slice(-7) :
-    range === '30d' ? allHistory.slice(-30) :
-    range === '90d' ? allHistory.slice(-90) :
-    allHistory
-
+  const allHistory = card?.price_history.map(s => s.price_eur) ?? []
+  const chartValues = range === '7d' ? allHistory.slice(-7)
+    : range === '30d' ? allHistory.slice(-30)
+    : range === '90d' ? allHistory.slice(-90)
+    : allHistory
   const chartValues2 = chartValues.length === 0
-    ? [card.market_price ?? card.cost_basis]
+    ? [card?.market_price ?? card?.cost_basis ?? 0]
     : chartValues
-
   const chartChange = chartValues2.length >= 2
     ? ((chartValues2[chartValues2.length - 1] - chartValues2[0]) / chartValues2[0]) * 100
     : 0
 
   function openEdit() {
-    setCondition(String(card!.condition))
-    setLanguage(card!.language as Language)
-    setSource(card!.source as Source)
-    setAcquiredDate(card!.acquired_date)
-    setNotes(card!.notes ?? '')
+    if (!card) return
+    setCondition(String(card.condition))
+    setLanguage(card.language as Language)
+    setSource(card.source as Source)
+    setAcquiredDate(card.acquired_date)
+    setNotes(card.notes ?? '')
     setEditError(null)
     setEditing(true)
   }
 
   function handleDelete() {
-    const id = card!.id
-    startTransition(async () => {
-      await deleteCardAction(id)
-      onClose()
-    })
+    if (!card) return
+    startTransition(async () => { await deleteCardAction(card.id); onClose() })
   }
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    const conditionNum = parseFloat(condition)
-    if (isNaN(conditionNum) || conditionNum < 1 || conditionNum > 10) {
-      setEditError('Condizione non valida (1–10)')
-      return
-    }
-    const id = card!.id
+    if (!card) return
+    const condNum = parseFloat(condition)
+    if (isNaN(condNum) || condNum < 1 || condNum > 10) { setEditError('Condizione non valida (1–10)'); return }
     startTransition(async () => {
-      const ok = await editCardAction(id, {
-        condition: conditionNum,
-        language,
-        source,
-        acquired_date: acquiredDate,
-        notes: notes.trim() || null,
-      })
+      const ok = await editCardAction(card.id, { condition: condNum, language, source, acquired_date: acquiredDate, notes: notes.trim() || null })
       if (ok) setEditing(false)
       else setEditError('Errore durante il salvataggio')
     })
@@ -116,141 +92,234 @@ export function DetailSheet({
 
   return (
     <>
-      <div className={'scrim' + (open ? ' is-open' : '')} onClick={() => { setEditing(false); onClose() }} />
-      <aside className={'sheet' + (open ? ' is-open' : '')}>
-        <div className="sheet__head">
-          <h3>{editing ? 'Modifica carta' : 'Dettaglio carta'}</h3>
-          {!editing && (
-            <button
-              className={'card__star' + (card.is_favorite ? ' is-fav' : '')}
-              style={{ width: 30, height: 30, background: 'var(--bg-2)', border: '1px solid var(--line)', margin: 0 }}
-              onClick={() => onToggleFav(card.id)}
-            >
-              <Star size={14} fill={card.is_favorite ? 'currentColor' : 'none'} strokeWidth={1.5} />
-            </button>
-          )}
-          <button className="sheet__close" onClick={() => { setEditing(false); onClose() }}><X size={14} /></button>
-        </div>
+      {/* Scrim */}
+      <div
+        onClick={() => { setEditing(false); onClose() }}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 90, pointerEvents: open ? 'auto' : 'none',
+          background: open ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0)',
+          transition: 'background 0.25s',
+        }}
+      />
 
-        {editing ? (
-          <div className="sheet__body">
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-jetbrains)', fontSize: 11, color: 'var(--ink-3)', marginBottom: 16, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-            >
-              <ChevronLeft size={13} /> Indietro
-            </button>
-            <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Sheet */}
+      <div style={{
+        position: 'fixed', right: 0, top: 0, bottom: 0,
+        width: 440, background: 'var(--bg-1)',
+        borderLeft: '1px solid var(--line)',
+        transform: open ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 280ms cubic-bezier(.2,.8,.2,1)',
+        zIndex: 91, display: 'flex', flexDirection: 'column',
+        overflowY: 'auto',
+      }}>
+        {card && el && (
+          <>
+            {/* Header */}
+            <div style={{
+              display: 'flex', alignItems: 'flex-start', gap: 12,
+              padding: '18px 20px 14px', borderBottom: '1px solid var(--line)',
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 17, color: 'var(--ink-0)', lineHeight: 1.2, marginBottom: 4 }}>
+                  {card.name}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                  {card.set_code} — {card.set_name} · #{card.card_number} · {card.language}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                <button onClick={() => onToggleFav(card.id)} style={{ background: 'none', border: 'none', padding: '6px', cursor: 'pointer', borderRadius: 8 }}>
+                  <Star size={16} strokeWidth={1.5}
+                    style={{ color: card.is_favorite ? '#FFCB2E' : 'var(--ink-3)', fill: card.is_favorite ? '#FFCB2E' : 'none' }}
+                  />
+                </button>
+                <button onClick={() => { setEditing(false); onClose() }} style={{ background: 'none', border: 'none', padding: '6px', cursor: 'pointer', borderRadius: 8 }}>
+                  <X size={16} style={{ color: 'var(--ink-3)' }} />
+                </button>
+              </div>
+            </div>
+
+            {/* Card image + meta */}
+            <div style={{ padding: '18px 20px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <div style={{ width: 130, flexShrink: 0, aspectRatio: '5/7', borderRadius: 10, overflow: 'hidden', background: 'var(--bg-2)' }}>
+                {card.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={card.image_url} alt={card.name} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, color: el.color, opacity: 0.4 }}>
+                    {el.glyph}
+                  </div>
+                )}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {/* Element */}
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Tipo</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{
+                      width: 20, height: 20, borderRadius: '50%',
+                      background: el.color + '22', border: `1.5px solid ${el.color}66`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, color: el.color,
+                    }}>{el.glyph}</div>
+                    <span style={{ fontSize: 13, color: 'var(--ink-1)' }}>{el.label}</span>
+                  </div>
+                </div>
+                {/* Rarity */}
+                {card.rarity && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Rarità</div>
+                    <div style={{ fontSize: 13, color: 'var(--ink-1)' }}>{card.rarity}</div>
+                  </div>
+                )}
+                {/* Grade */}
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Grado PSA</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--ink-0)' }}>
+                    {card.condition}<span style={{ fontSize: 13, color: 'var(--ink-3)', fontWeight: 400 }}>/10</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* P&L strip */}
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
+              gap: 1, background: 'var(--line)', margin: '0 20px',
+              borderRadius: 12, overflow: 'hidden',
+            }}>
               {[
-                { label: 'Condizione (PSA)', node: (
-                  <input type="number" min="1" max="10" step="0.5" value={condition} onChange={e => setCondition(e.target.value)}
-                    style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--line)', color: 'var(--ink-0)', borderRadius: 10, padding: '9px 12px', fontFamily: 'var(--font-jetbrains)', fontSize: 13 }} required />
-                )},
-                { label: 'Lingua', node: (
-                  <select value={language} onChange={e => setLanguage(e.target.value as Language)}
-                    style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--line)', color: 'var(--ink-0)', borderRadius: 10, padding: '9px 12px', fontFamily: 'var(--font-jetbrains)', fontSize: 13 }}>
-                    {LANGUAGES.map(l => <option key={l}>{l}</option>)}
-                  </select>
-                )},
-                { label: 'Fonte', node: (
-                  <select value={source} onChange={e => setSource(e.target.value as Source)}
-                    style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--line)', color: 'var(--ink-0)', borderRadius: 10, padding: '9px 12px', fontFamily: 'var(--font-jetbrains)', fontSize: 13 }}>
-                    {SOURCES.map(s => <option key={s}>{s}</option>)}
-                  </select>
-                )},
-                { label: 'Data acquisto', node: (
-                  <input type="date" value={acquiredDate} onChange={e => setAcquiredDate(e.target.value)}
-                    style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--line)', color: 'var(--ink-0)', borderRadius: 10, padding: '9px 12px', fontFamily: 'var(--font-jetbrains)', fontSize: 13 }} required />
-                )},
-                { label: 'Note (opzionale)', node: (
-                  <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-                    style={{ width: '100%', background: 'var(--bg-2)', border: '1px solid var(--line)', color: 'var(--ink-0)', borderRadius: 10, padding: '9px 12px', fontFamily: 'var(--font-jetbrains)', fontSize: 13, resize: 'none' }} />
-                )},
-              ].map(({ label, node }) => (
-                <div key={label}>
-                  <div style={{ fontFamily: 'var(--font-jetbrains)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: 6 }}>{label}</div>
-                  {node}
+                { label: 'Prezzo mercato', value: fmtMoney(card.market_price) },
+                { label: 'Costo acquisto', value: fmtMoney(card.cost_basis) },
+                { label: 'P&L', value: `${pl >= 0 ? '+' : '−'}${fmtMoney(Math.abs(pl))}`, sub: `${fmtPct(plPct)}`, color: pl >= 0 ? '#2DD881' : '#FF5B47' },
+              ].map(item => (
+                <div key={item.label} style={{ background: 'var(--bg-2)', padding: '12px 14px' }}>
+                  <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{item.label}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: item.color ?? 'var(--ink-0)' }}>{item.value}</div>
+                  {item.sub && <div style={{ fontSize: 10, color: item.color }}>{item.sub}</div>}
                 </div>
               ))}
-              {editError && <p style={{ color: 'var(--neg)', fontFamily: 'var(--font-jetbrains)', fontSize: 12, textAlign: 'center', margin: 0 }}>{editError}</p>}
-              <button type="submit" disabled={isPending} className="btn btn--primary" style={{ width: '100%', justifyContent: 'center', opacity: isPending ? 0.5 : 1 }}>
-                {isPending ? 'Salvo...' : 'Salva modifiche'}
-              </button>
-            </form>
-          </div>
-        ) : (
-        <div className="sheet__body">
-          <div className="sheet__hero">
-            <div className="sheet__art" style={{ '--art-a': el.color, '--art-b': el.glow } as React.CSSProperties}>
-              <div className="card__art-grid" />
-              <div className="card__art-frame" />
-              {card.image_url
-                ? <img src={card.image_url} alt={card.name} />
-                : <>
-                    <div className="card__glyph" style={{ fontSize: 96, bottom: -12, right: -4 }}>{el.glyph}</div>
-                    <div className="sheet__art-mono">{initials}</div>
-                  </>
-              }
             </div>
 
-            <div className="sheet__heroinfo">
-              <div className="badge-row">
-                <span className="badge badge--elem" style={{ '--art-a': el.color } as React.CSSProperties}>
-                  <span className="dot" /> {el.label}
-                </span>
-                {card.rarity && <span className="badge">{card.rarity}</span>}
-                <span className="badge">{card.language}</span>
+            {/* Price chart */}
+            {allHistory.length >= 2 && (
+              <div style={{ padding: '18px 20px 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    Andamento prezzo
+                  </div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {(['7d', '30d', '90d', '1y'] as Range[]).map(r => (
+                      <button key={r} onClick={() => setRange(r)} style={{
+                        padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 600,
+                        border: 'none', cursor: 'pointer',
+                        background: range === r ? el.color + '22' : 'var(--bg-2)',
+                        color: range === r ? el.color : 'var(--ink-3)',
+                      }}>{r}</button>
+                    ))}
+                  </div>
+                </div>
+                <AreaChart values={chartValues2} color={el.color} height={120} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 2px 0', fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>
+                  <span>Min {fmtMoney(Math.min(...chartValues2))}</span>
+                  <span style={{ color: chartChange >= 0 ? '#2DD881' : '#FF5B47' }}>{fmtPct(chartChange)}</span>
+                  <span>Max {fmtMoney(Math.max(...chartValues2))}</span>
+                </div>
               </div>
-              <h2>{card.name}</h2>
-              <div className="sub">{card.set_name} · {card.card_number}</div>
-              <div className="sheet__bigprice">{fmtMoney(card.market_price)}</div>
-            </div>
-          </div>
+            )}
 
-          <div className="sheet__chartblock">
-            <div className="sheet__chart-head">
-              <h4>Andamento prezzo</h4>
-              <div className="range-toggle">
-                {(['7d', '30d', '90d', '1y'] as Range[]).map(r => (
-                  <button key={r} className={range === r ? 'is-active' : ''} onClick={() => setRange(r)}>{r}</button>
-                ))}
+            {/* Details / Edit */}
+            <div style={{ padding: '18px 20px', flex: 1 }}>
+              {editing ? (
+                <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <FieldLabel>Condizione (PSA 1–10)</FieldLabel>
+                  <input type="number" min="1" max="10" step="0.5" value={condition}
+                    onChange={e => setCondition(e.target.value)} required
+                    style={inputStyle} />
+
+                  <FieldLabel>Lingua</FieldLabel>
+                  <select value={language} onChange={e => setLanguage(e.target.value as Language)} style={inputStyle}>
+                    {LANGUAGES.map(l => <option key={l}>{l}</option>)}
+                  </select>
+
+                  <FieldLabel>Fonte</FieldLabel>
+                  <select value={source} onChange={e => setSource(e.target.value as Source)} style={inputStyle}>
+                    {SOURCES.map(s => <option key={s}>{s}</option>)}
+                  </select>
+
+                  <FieldLabel>Data acquisto</FieldLabel>
+                  <input type="date" value={acquiredDate} onChange={e => setAcquiredDate(e.target.value)} required style={inputStyle} />
+
+                  <FieldLabel>Note (opzionale)</FieldLabel>
+                  <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+                    style={{ ...inputStyle, resize: 'vertical' }} />
+
+                  {editError && <div style={{ color: '#FF5B47', fontSize: 12, background: 'rgba(255,91,71,0.1)', padding: '8px 12px', borderRadius: 8 }}>{editError}</div>}
+
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="submit" disabled={isPending} style={{
+                      flex: 1, padding: '10px', background: 'var(--accent)', border: 'none',
+                      borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer', color: '#1a1500',
+                    }}>
+                      {isPending ? 'Salvo…' : 'Salva'}
+                    </button>
+                    <button type="button" onClick={() => setEditing(false)} style={{
+                      padding: '10px 18px', background: 'var(--bg-2)', border: '1px solid var(--line)',
+                      borderRadius: 10, fontSize: 13, cursor: 'pointer', color: 'var(--ink-1)',
+                    }}>Annulla</button>
+                  </div>
+                </form>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <Row label="Acquisita">{fmtDate(card.acquired_date)}</Row>
+                  <Row label="Fonte">{card.source}</Row>
+                  <Row label="Lingua">{card.language}</Row>
+                  {card.notes && <Row label="Note"><span style={{ whiteSpace: 'pre-wrap' }}>{card.notes}</span></Row>}
+                </div>
+              )}
+            </div>
+
+            {/* Footer actions */}
+            {!editing && (
+              <div style={{ display: 'flex', gap: 8, padding: '14px 20px', borderTop: '1px solid var(--line)' }}>
+                <button onClick={openEdit} style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                  padding: '9px', background: 'var(--bg-2)', border: '1px solid var(--line)',
+                  borderRadius: 10, fontSize: 13, cursor: 'pointer', color: 'var(--ink-1)',
+                }}>
+                  <Pencil size={14} /> Modifica
+                </button>
+                <button onClick={handleDelete} disabled={isPending} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                  padding: '9px 16px', background: 'rgba(255,91,71,0.1)', border: '1px solid rgba(255,91,71,0.25)',
+                  borderRadius: 10, fontSize: 13, cursor: 'pointer', color: '#FF5B47',
+                }}>
+                  <Trash2 size={14} /> Elimina
+                </button>
               </div>
-            </div>
-            <AreaChart values={chartValues2} color={el.color} height={180} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 4px 8px', fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--font-jetbrains)' }}>
-              <span>Min {fmtMoney(Math.min(...chartValues2))}</span>
-              <span style={{ color: chartChange >= 0 ? 'var(--pos)' : 'var(--neg)' }}>{fmtPct(chartChange)} nel periodo</span>
-              <span>Max {fmtMoney(Math.max(...chartValues2))}</span>
-            </div>
-          </div>
-
-          <div className="specs">
-            <div className="spec"><div className="spec__label">Set</div><div className="spec__value">{card.set_code} — {card.set_name}</div></div>
-            <div className="spec"><div className="spec__label">Numero</div><div className="spec__value">{card.card_number}</div></div>
-            <div className="spec"><div className="spec__label">Rarità</div><div className="spec__value">{card.rarity ?? '—'}</div></div>
-            <div className="spec"><div className="spec__label">Grado</div><div className="spec__value">{card.condition} / 10</div></div>
-            <div className="spec"><div className="spec__label">Lingua</div><div className="spec__value">{card.language}</div></div>
-            <div className="spec"><div className="spec__label">Acquisita</div><div className="spec__value">{fmtDate(card.acquired_date)}</div></div>
-            <div className="spec"><div className="spec__label">Provenienza</div><div className="spec__value">{card.source}</div></div>
-          </div>
-
-          {card.notes && (
-            <div className="notes">
-              <div style={{ fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink-3)', fontWeight: 600, marginBottom: 6 }}>Note</div>
-              {card.notes}
-            </div>
-          )}
-
-          <div className="sheet__actions">
-            <button className="btn" onClick={openEdit} disabled={isPending}><Pencil size={13} /> Modifica</button>
-            <button className="btn btn--ghost" style={{ marginLeft: 'auto', color: 'var(--neg)' }} onClick={handleDelete} disabled={isPending}>
-              <Trash2 size={13} /> Rimuovi
-            </button>
-          </div>
-        </div>
+            )}
+          </>
         )}
-      </aside>
+      </div>
     </>
+  )
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '9px 12px',
+  background: 'var(--bg-2)', border: '1px solid var(--line)',
+  borderRadius: 10, color: 'var(--ink-0)', fontSize: 13, outline: 'none',
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{children}</div>
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+      <span style={{ fontSize: 12, color: 'var(--ink-3)', flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 13, color: 'var(--ink-1)', textAlign: 'right' }}>{children}</span>
+    </div>
   )
 }
