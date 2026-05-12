@@ -16,9 +16,11 @@ export async function insertMagicCard(
   card: Omit<MagicCard, 'id' | 'created_at'>
 ): Promise<string | null> {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) { console.error('[insertMagicCard] no authenticated user'); return null }
   const { data, error } = await supabase
     .from('magic_cards')
-    .insert(card)
+    .insert({ ...card, user_id: user.id })
     .select('id')
     .single()
   if (error) { console.error('[insertMagicCard]', error); return null }

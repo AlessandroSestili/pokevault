@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, Layers, Eye, Settings,
-  Plus, Upload, Search,
+  Plus, Upload, Search, LogOut,
 } from 'lucide-react'
 import type { CollectionCardWithPrice, MagicCardWithPrice, ActiveGame } from '@/types'
 import { editCardAction } from '@/lib/actions'
+import { createClient } from '@/lib/supabase/client'
 import { DashboardPage } from './pages/DashboardPage'
 import { CollectionPage } from './pages/CollectionPage'
 import { SettingsPage } from './pages/SettingsPage'
@@ -25,12 +26,16 @@ const GAMES: { id: ActiveGame; label: string; icon: string; color: string; disab
   { id: 'yugioh',  label: 'Yu-Gi-Oh!',             icon: '★', color: '#FF5B47', disabled: true },
 ]
 
+type AppUser = { id: string; email: string; name: string }
+
 export function AppShell({
   initialCards,
   initialMagicCards,
+  user,
 }: {
   initialCards: CollectionCardWithPrice[]
   initialMagicCards: MagicCardWithPrice[]
+  user: AppUser | null
 }) {
   const [cards, setCards] = useState(initialCards)
   const [page, setPage] = useState<Page>('dashboard')
@@ -138,11 +143,24 @@ export function AppShell({
         )}
 
         <div className="rail__user">
-          <div className="rail__avatar">A</div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-0)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Alessandro</div>
+          <div className="rail__avatar">{(user?.name?.[0] ?? user?.email?.[0] ?? '?').toUpperCase()}</div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-0)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user?.name ?? 'Utente'}
+            </div>
             <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>Piano Collector</div>
           </div>
+          <button
+            onClick={async () => {
+              const supabase = createClient()
+              await supabase.auth.signOut()
+              window.location.href = '/login'
+            }}
+            title="Esci"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 6, display: 'flex', flexShrink: 0 }}
+          >
+            <LogOut size={13} style={{ color: 'var(--ink-3)' }} />
+          </button>
         </div>
       </nav>
 

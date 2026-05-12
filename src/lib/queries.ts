@@ -1,5 +1,4 @@
-import { createClient } from './supabase/server'
-import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { createClient, createAdminClient } from './supabase/server'
 import type { CollectionCard, CollectionCardWithPrice, PriceSnapshot } from '@/types'
 
 // ─── Cards ────────────────────────────────────────────────────────────────────
@@ -50,7 +49,9 @@ export async function fetchCardById(id: string): Promise<CollectionCardWithPrice
 
 export async function insertCard(card: Omit<CollectionCard, 'id' | 'created_at'>): Promise<string | null> {
   const supabase = await createClient()
-  const { data, error } = await supabase.from('cards').insert(card).select('id').single()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) { console.error('insertCard: no authenticated user'); return null }
+  const { data, error } = await supabase.from('cards').insert({ ...card, user_id: user.id }).select('id').single()
   if (error) { console.error('insertCard error:', JSON.stringify(error)); return null }
   return data?.id ?? null
 }
@@ -77,12 +78,7 @@ export async function upsertPriceSnapshot(
   priceEur: number,
   priceUsd?: number
 ): Promise<void> {
-  // Use service role to bypass RLS — price_snapshots are system-managed data,
-  // not user-specific rows, so session-based auth is not required here.
-  const supabase = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const supabase = createAdminClient()
   const { error } = await supabase.from('price_snapshots').upsert(
     { card_id: cardId, date, price_eur: priceEur, price_usd: priceUsd ?? null },
     { onConflict: 'card_id,date' }
