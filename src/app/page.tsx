@@ -1,13 +1,17 @@
 import { AppShell } from '@/components/AppShell'
 import { fetchCards } from '@/lib/queries'
+import { fetchMagicCards } from '@/lib/queries-magic'
 
 export default async function HomePage() {
-  let cards: Awaited<ReturnType<typeof fetchCards>> = []
-  try {
-    cards = await fetchCards()
-  } catch {
-    // Supabase not configured — empty state
-  }
+  const [pokemonCards, magicCards] = await Promise.all([
+    fetchCards().catch(() => []),
+    fetchMagicCards().catch(() => []),
+  ])
 
-  return <AppShell initialCards={cards} />
+  return (
+    <AppShell
+      initialCards={pokemonCards}
+      initialMagicCards={magicCards}
+    />
+  )
 }

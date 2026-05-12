@@ -133,6 +133,64 @@ export interface CardFilters {
 
 export type SortKey = "value" | "recent" | "mover" | "alpha";
 
+// ─── Magic: The Gathering ─────────────────────────────────────────────────────
+
+export type MagicColor = 'W' | 'U' | 'B' | 'R' | 'G';
+export type MagicCondition = 'NM' | 'LP' | 'MP' | 'HP' | 'DMG';
+export type MagicFormat = 'Standard' | 'Pioneer' | 'Modern' | 'Legacy' | 'Commander' | 'Vintage';
+
+export interface MagicCard {
+  id: string;
+  created_at: string;
+  name: string;
+  set_id: string;
+  set_name: string;
+  collector_number: string;
+  api_id: string | null;
+  image_url: string | null;
+  image_url_back: string | null;
+  colors: MagicColor[];
+  mana_cost: string | null;
+  cmc: number;
+  type_line: string | null;
+  card_type: string | null;
+  rarity: string | null;
+  format: string | null;
+  foil: boolean;
+  language: string;
+  condition: MagicCondition;
+  cost_basis: number;
+  source: string;
+  acquired_date: string;
+  notes: string | null;
+  is_favorite: boolean;
+}
+
+export interface MagicCardWithPrice extends MagicCard {
+  market_price: number | null;
+}
+
+// Scryfall API card shape (minimal fields we use)
+export interface ScryfallCard {
+  id: string;
+  name: string;
+  set: string;
+  set_name: string;
+  collector_number: string;
+  mana_cost: string | null;
+  cmc: number;
+  type_line: string;
+  colors: MagicColor[] | null;
+  color_identity: MagicColor[];
+  rarity: string;
+  image_uris?: { small: string; normal: string; large: string; png: string };
+  card_faces?: Array<{ image_uris?: { small: string; normal: string; large: string } }>;
+  prices: { eur: string | null; eur_foil: string | null; usd: string | null; usd_foil: string | null };
+  legalities: Record<string, string>;
+}
+
+export type ActiveGame = 'pokemon' | 'magic' | 'yugioh';
+
 export interface PortfolioTotals {
   totalValue: number;    // sum of market prices
   totalCost: number;     // sum of cost_basis

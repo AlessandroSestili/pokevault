@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Layers, Eye, Settings,
   Plus, Upload, Search,
 } from 'lucide-react'
-import type { CollectionCardWithPrice } from '@/types'
+import type { CollectionCardWithPrice, MagicCardWithPrice, ActiveGame } from '@/types'
 import { editCardAction } from '@/lib/actions'
 import { DashboardPage } from './pages/DashboardPage'
 import { CollectionPage } from './pages/CollectionPage'
@@ -13,10 +13,24 @@ import { SettingsPage } from './pages/SettingsPage'
 import { DetailSheet } from './DetailSheet'
 import { AddCardModal } from './modals/AddCardModal'
 import { ImportCsvModal } from './modals/ImportCsvModal'
+import { MagicCollectionShell } from './magic/MagicCollectionShell'
+import { AddMagicCardModal } from './modals/AddMagicCardModal'
 
 type Page = 'dashboard' | 'collection' | 'watchlist' | 'settings'
 
-export function AppShell({ initialCards }: { initialCards: CollectionCardWithPrice[] }) {
+const GAMES: { id: ActiveGame; label: string; icon: string; color: string; disabled?: boolean }[] = [
+  { id: 'pokemon', label: 'Pokémon TCG',          icon: '⚡', color: '#FFCB2E' },
+  { id: 'magic',   label: 'Magic: The Gathering',  icon: '✦', color: '#7B7CF7' },
+  { id: 'yugioh',  label: 'Yu-Gi-Oh!',             icon: '★', color: '#FF5B47', disabled: true },
+]
+
+export function AppShell({
+  initialCards,
+  initialMagicCards,
+}: {
+  initialCards: CollectionCardWithPrice[]
+  initialMagicCards: MagicCardWithPrice[]
+}) {
   const [cards, setCards] = useState(initialCards)
   const [page, setPage] = useState<Page>('dashboard')
   const [search, setSearch] = useState('')
@@ -24,24 +38,36 @@ export function AppShell({ initialCards }: { initialCards: CollectionCardWithPri
   const [sheetOpen, setSheetOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [addMagicOpen, setAddMagicOpen] = useState(false)
+  const [activeGame, setActiveGame] = useState<ActiveGame>('pokemon')
 
-  // Keep cards in sync if parent re-renders (server revalidation)
+  useEffect(() => { setCards(initialCards) }, [initialCards])
+
   useEffect(() => {
-    setCards(initialCards)
-  }, [initialCards])
+    const saved = localStorage.getItem('tcgvault_game') as ActiveGame | null
+    if (saved && ['pokemon', 'magic'].includes(saved)) setActiveGame(saved)
+  }, [])
 
-  // Esc closes sheet
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setSheetOpen(false); setAddOpen(false); setImportOpen(false) }
+      if (e.key === 'Escape') {
+        setSheetOpen(false); setAddOpen(false)
+        setImportOpen(false); setAddMagicOpen(false)
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  function switchGame(game: ActiveGame) {
+    if (game === 'yugioh') return
+    setActiveGame(game)
+    localStorage.setItem('tcgvault_game', game)
+    setPage('dashboard')
+  }
+
   function openCard(card: CollectionCardWithPrice) {
-    setSelectedCard(card)
-    setSheetOpen(true)
+    setSelectedCard(card); setSheetOpen(true)
   }
 
   async function toggleFav(id: string) {
@@ -54,15 +80,19 @@ export function AppShell({ initialCards }: { initialCards: CollectionCardWithPri
   }
 
   const favCount = cards.filter(c => c.is_favorite).length
+  const magicFavCount = initialMagicCards.filter(c => c.is_favorite).length
 
   const navItems = [
     { id: 'dashboard'  as Page, label: 'Dashboard',    Icon: LayoutDashboard, count: null },
-    { id: 'collection' as Page, label: 'Collezione',   Icon: Layers,          count: cards.length },
-    { id: 'watchlist'  as Page, label: 'Watchlist',    Icon: Eye,             count: favCount },
-    { id: 'settings'   as Page, label: 'Impostazioni', Icon: Settings,        count: null },
+    { id: 'collection' as Page, label: 'Collezione',   Icon: Layers,
+      count: activeGame === 'magic' ? initialMagicCards.length : cards.length },
+    { id: 'watchlist'  as Page, label: 'Watchlist',    Icon: Eye,
+      count: activeGame === 'magic' ? magicFavCount : favCount },
+    { id: 'settings'   as Page, label: 'Impostazioni', Icon: Settings, count: null },
   ]
 
-  const showSearch = page === 'collection' || page === 'watchlist'
+  const showSearch = (page === 'collection' || page === 'watchlist') && activeGame === 'pokemon'
+  const activeColor = GAMES.find(g => g.id === activeGame)?.color ?? '#FFCB2E'
 
   return (
     <div className="app">
@@ -71,7 +101,7 @@ export function AppShell({ initialCards }: { initialCards: CollectionCardWithPri
         <div className="rail__brand">
           <div className="rail__logo" />
           <div>
-            <h1>PokeVault</h1>
+            <h1>TCG Vault</h1>
             <small>v 1.0 · Beta</small>
           </div>
         </div>
@@ -91,16 +121,20 @@ export function AppShell({ initialCards }: { initialCards: CollectionCardWithPri
         ))}
 
         <div className="rail__group">Azioni rapide</div>
-        <button className="rail__item" onClick={() => setAddOpen(true)}>
-          <span className="rail__dot" />
-          <Plus size={14} />
-          <span>Aggiungi carta</span>
-        </button>
-        <button className="rail__item" onClick={() => setImportOpen(true)}>
-          <span className="rail__dot" />
-          <Upload size={14} />
-          <span>Importa CSV</span>
-        </button>
+        {activeGame === 'pokemon' ? (
+          <>
+            <button className="rail__item" onClick={() => setAddOpen(true)}>
+              <span className="rail__dot" /><Plus size={14} /><span>Aggiungi carta</span>
+            </button>
+            <button className="rail__item" onClick={() => setImportOpen(true)}>
+              <span className="rail__dot" /><Upload size={14} /><span>Importa CSV</span>
+            </button>
+          </>
+        ) : (
+          <button className="rail__item" onClick={() => setAddMagicOpen(true)}>
+            <span className="rail__dot" /><Plus size={14} /><span>Aggiungi carta</span>
+          </button>
+        )}
 
         <div className="rail__user">
           <div className="rail__avatar">A</div>
@@ -113,11 +147,53 @@ export function AppShell({ initialCards }: { initialCards: CollectionCardWithPri
 
       {/* ── MAIN ── */}
       <div className="main">
+        {/* Game tabs */}
+        <div style={{
+          display: 'flex', alignItems: 'stretch',
+          borderBottom: '1px solid var(--line)',
+          background: 'var(--bg-0)',
+          flexShrink: 0,
+        }}>
+          {GAMES.map(g => {
+            const active = activeGame === g.id
+            return (
+              <button
+                key={g.id}
+                onClick={() => switchGame(g.id)}
+                disabled={g.disabled}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '0 22px', height: 44,
+                  background: 'none', border: 'none',
+                  borderBottom: `2px solid ${active ? g.color : 'transparent'}`,
+                  color: active ? g.color : g.disabled ? 'var(--ink-3)' : 'var(--ink-2)',
+                  fontSize: 13, fontWeight: active ? 600 : 400,
+                  cursor: g.disabled ? 'default' : 'pointer',
+                  opacity: g.disabled ? 0.4 : 1,
+                  transition: 'color 140ms, border-color 140ms',
+                  whiteSpace: 'nowrap',
+                  marginBottom: -1,
+                }}
+              >
+                <span style={{ fontSize: 15 }}>{g.icon}</span>
+                {g.label}
+                {g.disabled && (
+                  <span style={{
+                    fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+                    textTransform: 'uppercase', color: 'var(--ink-3)',
+                    background: 'var(--bg-2)', padding: '1px 6px', borderRadius: 4,
+                  }}>Soon</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
         <header className="topbar">
           <h2 className="topbar__title">
             {page === 'dashboard'  && <>Dashboard <span>· panoramica</span></>}
-            {page === 'collection' && <>Collezione <span>· {cards.length} carte</span></>}
-            {page === 'watchlist'  && <>Watchlist <span>· {favCount} preferite</span></>}
+            {page === 'collection' && <>Collezione <span>· {activeGame === 'magic' ? initialMagicCards.length : cards.length} carte</span></>}
+            {page === 'watchlist'  && <>Watchlist <span>· {activeGame === 'magic' ? magicFavCount : favCount} preferite</span></>}
             {page === 'settings'   && <>Impostazioni</>}
           </h2>
 
@@ -134,7 +210,7 @@ export function AppShell({ initialCards }: { initialCards: CollectionCardWithPri
 
           <div className="spacer" />
 
-          {page !== 'settings' && (
+          {page !== 'settings' && activeGame === 'pokemon' && (
             <>
               <button className="btn" onClick={() => setImportOpen(true)}>
                 <Upload size={13} /> Importa
@@ -144,10 +220,19 @@ export function AppShell({ initialCards }: { initialCards: CollectionCardWithPri
               </button>
             </>
           )}
+          {page !== 'settings' && activeGame === 'magic' && (
+            <button
+              className="btn btn--primary"
+              onClick={() => setAddMagicOpen(true)}
+              style={{ background: 'linear-gradient(135deg, #7B7CF7, #4F46E5)' }}
+            >
+              <Plus size={13} /> Aggiungi carta
+            </button>
+          )}
         </header>
 
         <div className="content">
-          {page === 'dashboard' && (
+          {activeGame === 'pokemon' && page === 'dashboard' && (
             <DashboardPage
               cards={cards}
               onOpenCard={openCard}
@@ -155,7 +240,7 @@ export function AppShell({ initialCards }: { initialCards: CollectionCardWithPri
               onGoCollection={() => setPage('collection')}
             />
           )}
-          {(page === 'collection' || page === 'watchlist') && (
+          {activeGame === 'pokemon' && (page === 'collection' || page === 'watchlist') && (
             <CollectionPage
               cards={cards}
               search={search}
@@ -164,19 +249,28 @@ export function AppShell({ initialCards }: { initialCards: CollectionCardWithPri
               onToggleFav={toggleFav}
             />
           )}
+          {activeGame === 'magic' && (page === 'dashboard' || page === 'collection' || page === 'watchlist') && (
+            <MagicCollectionShell
+              initialCards={initialMagicCards}
+              search={search}
+              favoritesOnly={page === 'watchlist'}
+            />
+          )}
           {page === 'settings' && <SettingsPage />}
         </div>
       </div>
 
       {/* ── OVERLAYS ── */}
-      <DetailSheet
-        card={selectedCard}
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        onToggleFav={toggleFav}
-      />
-      <AddCardModal open={addOpen} onClose={() => setAddOpen(false)} />
-      <ImportCsvModal open={importOpen} onClose={() => setImportOpen(false)} />
+      {activeGame === 'pokemon' && (
+        <>
+          <DetailSheet card={selectedCard} open={sheetOpen} onClose={() => setSheetOpen(false)} onToggleFav={toggleFav} />
+          <AddCardModal open={addOpen} onClose={() => setAddOpen(false)} />
+          <ImportCsvModal open={importOpen} onClose={() => setImportOpen(false)} />
+        </>
+      )}
+      {activeGame === 'magic' && (
+        <AddMagicCardModal open={addMagicOpen} onClose={() => setAddMagicOpen(false)} />
+      )}
     </div>
   )
 }

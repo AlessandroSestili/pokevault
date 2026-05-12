@@ -185,7 +185,7 @@ input, textarea, select { font-family: inherit; }
 /* ── MAIN ──────────────────────────────────────────────────────────────────── */
 .main {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   min-width: 0;
   background: var(--bg-0);
   position: relative;
