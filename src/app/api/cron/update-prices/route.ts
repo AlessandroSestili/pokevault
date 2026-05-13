@@ -1,3 +1,5 @@
+export const maxDuration = 60
+
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getMinNMPrice, searchBlueprintsByName } from '@/lib/api/cardtrader'
