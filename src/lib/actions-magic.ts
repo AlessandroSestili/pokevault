@@ -1,28 +1,17 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
 import type { MagicCard } from '@/types'
 import { insertMagicCard, updateMagicCard, deleteMagicCard } from './queries-magic'
+import { runAndRevalidate } from './action-utils'
 
-export async function addMagicCardAction(
-  data: Omit<MagicCard, 'id' | 'created_at'>
-): Promise<string | null> {
-  const id = await insertMagicCard(data)
-  revalidatePath('/')
-  return id
+export async function addMagicCardAction(data: Omit<MagicCard, 'id' | 'created_at'>) {
+  return runAndRevalidate(() => insertMagicCard(data))
 }
 
-export async function editMagicCardAction(
-  id: string,
-  patch: Partial<Omit<MagicCard, 'id' | 'created_at'>>
-): Promise<boolean> {
-  const ok = await updateMagicCard(id, patch)
-  revalidatePath('/')
-  return ok
+export async function editMagicCardAction(id: string, patch: Partial<Omit<MagicCard, 'id' | 'created_at'>>) {
+  return runAndRevalidate(() => updateMagicCard(id, patch))
 }
 
-export async function deleteMagicCardAction(id: string): Promise<boolean> {
-  const ok = await deleteMagicCard(id)
-  revalidatePath('/')
-  return ok
+export async function deleteMagicCardAction(id: string) {
+  return runAndRevalidate(() => deleteMagicCard(id))
 }

@@ -1,4 +1,5 @@
 import { createClient, createAdminClient } from './supabase/server'
+import { makeTableCRUD } from './db'
 import type { CollectionCard, CollectionCardWithPrice, PriceSnapshot } from '@/types'
 
 // ─── Cards ────────────────────────────────────────────────────────────────────
@@ -47,28 +48,11 @@ export async function fetchCardById(id: string): Promise<CollectionCardWithPrice
   return { ...card, market_price: latest, price_history: history }
 }
 
-export async function insertCard(card: Omit<CollectionCard, 'id' | 'created_at'>): Promise<string | null> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) { console.error('insertCard: no authenticated user'); return null }
-  const { data, error } = await supabase.from('cards').insert({ ...card, user_id: user.id }).select('id').single()
-  if (error) { console.error('insertCard error:', JSON.stringify(error)); return null }
-  return data?.id ?? null
-}
+const crud = makeTableCRUD('cards', 'Card')
 
-export async function updateCard(id: string, patch: Partial<Omit<CollectionCard, 'id' | 'created_at'>>): Promise<boolean> {
-  const supabase = await createClient()
-  const { error } = await supabase.from('cards').update(patch).eq('id', id)
-  if (error) { console.error(error); return false }
-  return true
-}
-
-export async function deleteCard(id: string): Promise<boolean> {
-  const supabase = await createClient()
-  const { error } = await supabase.from('cards').delete().eq('id', id)
-  if (error) { console.error(error); return false }
-  return true
-}
+export const insertCard = (data: Omit<CollectionCard, 'id' | 'created_at'>) => crud.insert(data)
+export const updateCard = (id: string, patch: Partial<Omit<CollectionCard, 'id' | 'created_at'>>) => crud.update(id, patch)
+export const deleteCard = (id: string) => crud.remove(id)
 
 // ─── Price snapshots ──────────────────────────────────────────────────────────
 

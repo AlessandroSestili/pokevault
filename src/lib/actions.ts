@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from './supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { insertCard, updateCard, deleteCard, upsertPriceSnapshot } from './queries'
+import { runAndRevalidate } from './action-utils'
 import type { CollectionCard, Language, Source } from '@/types'
 
 
@@ -169,19 +170,12 @@ export async function addCardAction(
   return id
 }
 
-export async function editCardAction(
-  id: string,
-  patch: Partial<Omit<CollectionCard, 'id' | 'created_at'>>
-): Promise<boolean> {
-  const ok = await updateCard(id, patch)
-  revalidatePath('/')
-  return ok
+export async function editCardAction(id: string, patch: Partial<Omit<CollectionCard, 'id' | 'created_at'>>) {
+  return runAndRevalidate(() => updateCard(id, patch))
 }
 
-export async function deleteCardAction(id: string): Promise<boolean> {
-  const ok = await deleteCard(id)
-  revalidatePath('/')
-  return ok
+export async function deleteCardAction(id: string) {
+  return runAndRevalidate(() => deleteCard(id))
 }
 
 const VALID_LANGUAGES = new Set(['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH'])
