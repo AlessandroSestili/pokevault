@@ -4,13 +4,22 @@ import type { MagicCard, MagicCardWithPrice } from '@/types'
 
 export async function fetchMagicCards(): Promise<MagicCardWithPrice[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('magic_cards')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(10000)
-  if (error) { console.error('[fetchMagicCards]', error); return [] }
-  return (data ?? []).map(c => ({ ...c, market_price: null }))
+  const BATCH = 1000
+  const all: MagicCard[] = []
+  let from = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('magic_cards')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(from, from + BATCH - 1)
+    if (error) { console.error('[fetchMagicCards]', error); break }
+    if (!data || data.length === 0) break
+    all.push(...data)
+    if (data.length < BATCH) break
+    from += BATCH
+  }
+  return all.map(c => ({ ...c, market_price: null }))
 }
 
 const crud = makeTableCRUD('magic_cards', 'MagicCard')
