@@ -13,30 +13,36 @@ export type PriceSource = "cardmarket" | "tcgplayer";
 
 export type ApiSource = "pokemontcg" | "tcgdex" | "cardtrader" | "manual";
 
-// A card in the user's collection (stored in Supabase)
-export interface CollectionCard {
+// Fields shared by every game's card type
+export interface BaseCard {
   id: string;
   created_at: string;
-  // Card identity
   name: string;
-  set_id: string;        // e.g. "sv6" or tcgdex set code
+  set_id: string;
   set_name: string;
+  image_url: string | null;
+  rarity: string | null;
+  language: string;
+  cost_basis: number;
+  source: string;
+  acquired_date: string;
+  notes: string | null;
+  is_favorite: boolean;
+}
+
+// A card in the user's collection (stored in Supabase)
+export interface CollectionCard extends BaseCard {
+  // Card identity
   set_code: string;      // short code e.g. "SV6"
   card_number: string;   // e.g. "012/180"
   api_id: string | null; // pokemontcg.io or tcgdex card id
   api_source: ApiSource;
-  image_url: string | null;
   // Card attributes
   element: string | null;     // Pokemon type (Fire, Water, etc.)
-  rarity: string | null;
   language: Language;
   // Acquisition
   condition: number;          // PSA-style 1-10
-  cost_basis: number;         // what user paid (EUR)
   source: Source;
-  acquired_date: string;      // ISO date
-  notes: string | null;
-  is_favorite: boolean;
 }
 
 // Card with live market price appended (computed at render time)
@@ -139,31 +145,18 @@ export type MagicColor = 'W' | 'U' | 'B' | 'R' | 'G';
 export type MagicCondition = 'NM' | 'LP' | 'MP' | 'HP' | 'DMG';
 export type MagicFormat = 'Standard' | 'Pioneer' | 'Modern' | 'Legacy' | 'Commander' | 'Vintage';
 
-export interface MagicCard {
-  id: string;
-  created_at: string;
-  name: string;
-  set_id: string;
-  set_name: string;
+export interface MagicCard extends BaseCard {
   collector_number: string;
   api_id: string | null;
-  image_url: string | null;
   image_url_back: string | null;
   colors: MagicColor[];
   mana_cost: string | null;
   cmc: number;
   type_line: string | null;
   card_type: string | null;
-  rarity: string | null;
   format: string | null;
   foil: boolean;
-  language: string;
   condition: MagicCondition;
-  cost_basis: number;
-  source: string;
-  acquired_date: string;
-  notes: string | null;
-  is_favorite: boolean;
 }
 
 export interface MagicCardWithPrice extends MagicCard {
