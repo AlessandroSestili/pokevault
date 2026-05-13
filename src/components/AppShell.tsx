@@ -3,32 +3,20 @@
 import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, Layers, Eye, Settings,
-  Plus, Upload, Search, LogOut, BarChart2,
+  BarChart2, Search, LogOut,
 } from 'lucide-react'
 import type { CollectionCardWithPrice, MagicCardWithPrice, ActiveGame } from '@/types'
-import { editCardAction } from '@/lib/actions'
-import { editMagicCardAction } from '@/lib/actions-magic'
 import { createClient } from '@/lib/supabase/client'
-import { DashboardPage } from './pages/DashboardPage'
-import { CollectionPage } from './pages/CollectionPage'
 import { SettingsPage } from './pages/SettingsPage'
-import { DetailSheet } from './DetailSheet'
-import { AddCardModal } from './modals/AddCardModal'
-import { ImportCsvModal } from './modals/ImportCsvModal'
-import { MagicCollectionShell } from './magic/MagicCollectionShell'
-import { MagicDashboardPage } from './magic/MagicDashboardPage'
-import { MagicDetailSheet } from './magic/MagicDetailSheet'
-import { MagicAnalyticsPage } from './magic/MagicAnalyticsPage'
-import { AddMagicCardModal } from './modals/AddMagicCardModal'
 import { GameLogo } from './ui/GameLogo'
-import { AnalyticsPage } from './pages/AnalyticsPage'
+import { usePokemonGame } from './games/usePokemonGame'
+import { useMagicGame } from './games/useMagicGame'
+import type { Page } from './games/types'
 
-type Page = 'dashboard' | 'collection' | 'watchlist' | 'analytics' | 'settings'
-
-const GAMES: { id: ActiveGame; label: string; icon: string; color: string; disabled?: boolean }[] = [
-  { id: 'pokemon', label: 'Pokémon TCG',          icon: '⚡', color: '#FFCB2E' },
-  { id: 'magic',   label: 'Magic: The Gathering',  icon: '✦', color: '#7B7CF7' },
-  { id: 'yugioh',  label: 'Yu-Gi-Oh!',             icon: '★', color: '#FF5B47', disabled: true },
+const GAMES: { id: ActiveGame; label: string; color: string; disabled?: boolean }[] = [
+  { id: 'pokemon', label: 'Pokémon TCG',          color: '#FFCB2E' },
+  { id: 'magic',   label: 'Magic: The Gathering',  color: '#7B7CF7' },
+  { id: 'yugioh',  label: 'Yu-Gi-Oh!',             color: '#FF5B47', disabled: true },
 ]
 
 type AppUser = { id: string; email: string; name: string }
@@ -42,86 +30,52 @@ export function AppShell({
   initialMagicCards: MagicCardWithPrice[]
   user: AppUser | null
 }) {
-  const [cards, setCards] = useState(initialCards)
-  const [magicCards, setMagicCards] = useState(initialMagicCards)
-  const [page, setPage] = useState<Page>('dashboard')
-  const [search, setSearch] = useState('')
-  const [selectedCard, setSelectedCard] = useState<CollectionCardWithPrice | null>(null)
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [addOpen, setAddOpen] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
-  const [addMagicOpen, setAddMagicOpen] = useState(false)
-  const [selectedMagicCard, setSelectedMagicCard] = useState<MagicCardWithPrice | null>(null)
-  const [magicSheetOpen, setMagicSheetOpen] = useState(false)
+  const [page, setPage]           = useState<Page>('dashboard')
+  const [search, setSearch]       = useState('')
   const [activeGame, setActiveGame] = useState<ActiveGame>('pokemon')
-
-  useEffect(() => { setCards(initialCards) }, [initialCards])
-  useEffect(() => { setMagicCards(initialMagicCards) }, [initialMagicCards])
 
   useEffect(() => {
     const saved = localStorage.getItem('tcgvault_game') as ActiveGame | null
-    if (saved && ['pokemon', 'magic'].includes(saved)) setActiveGame(saved)
+    if (saved && ['pokemon', 'magic'].includes(saved)) setActiveGame(saved as ActiveGame)
   }, [])
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setSheetOpen(false); setAddOpen(false)
-        setImportOpen(false); setAddMagicOpen(false)
-      }
-    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') activePlugin.closeAll() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  })
+
+  // ── Hooks sempre chiamati (regola dei hook) ──────────────────────────────
+  const pokemon = usePokemonGame(initialCards,      page, search, setPage)
+  const magic   = useMagicGame(initialMagicCards,   page, search, setPage)
+
+  // ── Dizionario: aggiungere Yu-Gi-Oh = 1 riga ───────────────────────────
+  const pluginMap: Partial<Record<ActiveGame, typeof pokemon>> = { pokemon, magic }
+  const activePlugin = pluginMap[activeGame] ?? pokemon
+  const activeColor  = GAMES.find(g => g.id === activeGame)?.color ?? '#FFCB2E'
 
   function switchGame(game: ActiveGame) {
-    if (game === 'yugioh') return
+    if (GAMES.find(g => g.id === game)?.disabled) return
     setActiveGame(game)
     localStorage.setItem('tcgvault_game', game)
     setPage('dashboard')
   }
 
-  function openCard(card: CollectionCardWithPrice) {
-    setSelectedCard(card); setSheetOpen(true)
-  }
-
-  async function toggleFav(id: string) {
-    const card = cards.find(c => c.id === id)
-    if (!card) return
-    const newFav = !card.is_favorite
-    setCards(prev => prev.map(c => c.id === id ? { ...c, is_favorite: newFav } : c))
-    if (selectedCard?.id === id) setSelectedCard(prev => prev ? { ...prev, is_favorite: newFav } : prev)
-    await editCardAction(id, { is_favorite: newFav })
-  }
-
-  function openMagicCard(card: MagicCardWithPrice) {
-    setSelectedMagicCard(card); setMagicSheetOpen(true)
-  }
-
-  async function toggleMagicFav(id: string) {
-    const card = magicCards.find(c => c.id === id)
-    if (!card) return
-    const newFav = !card.is_favorite
-    setMagicCards(prev => prev.map(c => c.id === id ? { ...c, is_favorite: newFav } : c))
-    if (selectedMagicCard?.id === id) setSelectedMagicCard(prev => prev ? { ...prev, is_favorite: newFav } : prev)
-    await editMagicCardAction(id, { is_favorite: newFav })
-  }
-
-  const favCount = cards.filter(c => c.is_favorite).length
-  const magicFavCount = magicCards.filter(c => c.is_favorite).length
-
   const navItems = [
     { id: 'dashboard'  as Page, label: 'Dashboard',    Icon: LayoutDashboard, count: null },
-    { id: 'collection' as Page, label: 'Collezione',   Icon: Layers,
-      count: activeGame === 'magic' ? magicCards.length : cards.length },
-    { id: 'watchlist'  as Page, label: 'Watchlist',    Icon: Eye,
-      count: activeGame === 'magic' ? magicFavCount : favCount },
+    { id: 'collection' as Page, label: 'Collezione',   Icon: Layers,   count: activePlugin.counts.collection },
+    { id: 'watchlist'  as Page, label: 'Watchlist',    Icon: Eye,      count: activePlugin.counts.watchlist },
     { id: 'analytics'  as Page, label: 'Analytics',    Icon: BarChart2, count: null },
-    { id: 'settings'   as Page, label: 'Impostazioni', Icon: Settings, count: null },
+    { id: 'settings'   as Page, label: 'Impostazioni', Icon: Settings,  count: null },
   ]
 
-  const showSearch = (page === 'collection' || page === 'watchlist') && activeGame === 'pokemon'
-  const activeColor = GAMES.find(g => g.id === activeGame)?.color ?? '#FFCB2E'
+  const pageTitle: Record<Page, React.ReactNode> = {
+    dashboard:  <>Dashboard  <span>· panoramica</span></>,
+    collection: <>Collezione <span>· {activePlugin.counts.collection} carte</span></>,
+    watchlist:  <>Watchlist  <span>· {activePlugin.counts.watchlist} preferite</span></>,
+    analytics:  <>Analytics  <span>· insights</span></>,
+    settings:   <>Impostazioni</>,
+  }
 
   return (
     <div className="app">
@@ -150,20 +104,7 @@ export function AppShell({
         ))}
 
         <div className="rail__group">Azioni rapide</div>
-        {activeGame === 'pokemon' ? (
-          <>
-            <button className="rail__item" onClick={() => setAddOpen(true)}>
-              <span className="rail__dot" /><Plus size={14} /><span>Aggiungi carta</span>
-            </button>
-            <button className="rail__item" onClick={() => setImportOpen(true)}>
-              <span className="rail__dot" /><Upload size={14} /><span>Importa CSV</span>
-            </button>
-          </>
-        ) : (
-          <button className="rail__item" onClick={() => setAddMagicOpen(true)}>
-            <span className="rail__dot" /><Plus size={14} /><span>Aggiungi carta</span>
-          </button>
-        )}
+        {activePlugin.railActions}
 
         <div className="rail__user">
           <div className="rail__avatar">{(user?.name?.[0] ?? user?.email?.[0] ?? '?').toUpperCase()}</div>
@@ -174,11 +115,7 @@ export function AppShell({
             <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>Piano Collector</div>
           </div>
           <button
-            onClick={async () => {
-              const supabase = createClient()
-              await supabase.auth.signOut()
-              window.location.href = '/login'
-            }}
+            onClick={async () => { const s = createClient(); await s.auth.signOut(); window.location.href = '/login' }}
             title="Esci"
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 6, display: 'flex', flexShrink: 0 }}
           >
@@ -190,12 +127,7 @@ export function AppShell({
       {/* ── MAIN ── */}
       <div className="main">
         {/* Game tabs */}
-        <div style={{
-          display: 'flex', alignItems: 'stretch',
-          borderBottom: '1px solid var(--line)',
-          background: 'var(--bg-0)',
-          flexShrink: 0,
-        }}>
+        <div style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid var(--line)', background: 'var(--bg-0)', flexShrink: 0 }}>
           {GAMES.map(g => {
             const active = activeGame === g.id
             return (
@@ -213,18 +145,15 @@ export function AppShell({
                   cursor: g.disabled ? 'default' : 'pointer',
                   opacity: g.disabled ? 0.4 : 1,
                   transition: 'color 140ms, border-color 140ms',
-                  whiteSpace: 'nowrap',
-                  marginBottom: -1,
+                  whiteSpace: 'nowrap', marginBottom: -1,
                 }}
               >
                 <GameLogo game={g.id} size={18} />
                 {g.label}
                 {g.disabled && (
-                  <span style={{
-                    fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
-                    textTransform: 'uppercase', color: 'var(--ink-3)',
-                    background: 'var(--bg-2)', padding: '1px 6px', borderRadius: 4,
-                  }}>Soon</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', background: 'var(--bg-2)', padding: '1px 6px', borderRadius: 4 }}>
+                    Soon
+                  </span>
                 )}
               </button>
             )
@@ -232,106 +161,27 @@ export function AppShell({
         </div>
 
         <header className="topbar">
-          <h2 className="topbar__title">
-            {page === 'dashboard'  && <>Dashboard <span>· panoramica</span></>}
-            {page === 'collection' && <>Collezione <span>· {activeGame === 'magic' ? magicCards.length : cards.length} carte</span></>}
-            {page === 'watchlist'  && <>Watchlist <span>· {activeGame === 'magic' ? magicFavCount : favCount} preferite</span></>}
-            {page === 'analytics'  && <>Analytics <span>· insights</span></>}
-            {page === 'settings'   && <>Impostazioni</>}
-          </h2>
+          <h2 className="topbar__title">{pageTitle[page]}</h2>
 
-          {showSearch && (
+          {activePlugin.showSearch && (
             <div className="search">
               <Search size={14} />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Cerca per nome, set, numero…"
-              />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cerca per nome, set, numero…" />
             </div>
           )}
 
           <div className="spacer" />
-
-          {page !== 'settings' && page !== 'analytics' && activeGame === 'pokemon' && (
-            <>
-              <button className="btn" onClick={() => setImportOpen(true)}>
-                <Upload size={13} /> Importa
-              </button>
-              <button className="btn btn--primary" onClick={() => setAddOpen(true)}>
-                <Plus size={13} /> Aggiungi carta
-              </button>
-            </>
-          )}
-          {page !== 'settings' && page !== 'analytics' && activeGame === 'magic' && (
-            <button
-              className="btn btn--primary"
-              onClick={() => setAddMagicOpen(true)}
-              style={{ background: 'linear-gradient(135deg, #7B7CF7, #4F46E5)' }}
-            >
-              <Plus size={13} /> Aggiungi carta
-            </button>
-          )}
+          {activePlugin.topbarActions}
         </header>
 
         <div className="content">
-          {activeGame === 'pokemon' && page === 'dashboard' && (
-            <DashboardPage
-              cards={cards}
-              onOpenCard={openCard}
-              onToggleFav={toggleFav}
-              onGoCollection={() => setPage('collection')}
-            />
-          )}
-          {activeGame === 'pokemon' && (page === 'collection' || page === 'watchlist') && (
-            <CollectionPage
-              cards={cards}
-              search={search}
-              favoritesOnly={page === 'watchlist'}
-              onOpenCard={openCard}
-              onToggleFav={toggleFav}
-              onAdd={() => setAddOpen(true)}
-            />
-          )}
-          {activeGame === 'magic' && page === 'dashboard' && (
-            <MagicDashboardPage
-              cards={magicCards}
-              onOpenCard={openMagicCard}
-              onToggleFav={toggleMagicFav}
-              onGoCollection={() => setPage('collection')}
-            />
-          )}
-          {activeGame === 'magic' && (page === 'collection' || page === 'watchlist') && (
-            <MagicCollectionShell
-              initialCards={magicCards}
-              search={search}
-              favoritesOnly={page === 'watchlist'}
-            />
-          )}
-          {activeGame === 'pokemon' && page === 'analytics' && (
-            <AnalyticsPage cards={cards} />
-          )}
-          {activeGame === 'magic' && page === 'analytics' && (
-            <MagicAnalyticsPage cards={magicCards} />
-          )}
-          {page === 'settings' && <SettingsPage />}
+          {page === 'settings' ? <SettingsPage /> : activePlugin.content}
         </div>
       </div>
 
-      {/* ── OVERLAYS ── */}
-      {activeGame === 'pokemon' && (
-        <>
-          <DetailSheet card={selectedCard} open={sheetOpen} onClose={() => setSheetOpen(false)} onToggleFav={toggleFav} />
-          <AddCardModal open={addOpen} onClose={() => setAddOpen(false)} />
-          <ImportCsvModal open={importOpen} onClose={() => setImportOpen(false)} />
-        </>
-      )}
-      {activeGame === 'magic' && (
-        <>
-          <MagicDetailSheet card={selectedMagicCard} open={magicSheetOpen} onClose={() => setMagicSheetOpen(false)} onToggleFav={toggleMagicFav} />
-          <AddMagicCardModal open={addMagicOpen} onClose={() => setAddMagicOpen(false)} />
-        </>
-      )}
+      {/* ── OVERLAYS — entrambi sempre nel DOM, ognuno gestisce i propri stati ── */}
+      {pokemon.overlays}
+      {magic.overlays}
     </div>
   )
 }
