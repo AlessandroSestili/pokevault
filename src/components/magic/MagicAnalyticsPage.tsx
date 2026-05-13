@@ -357,6 +357,29 @@ export function MagicAnalyticsPage({ cards }: { cards: MagicCardWithPrice[] }) {
           ))}
         </Card>
 
+        {/* ── Fasce di valore ── */}
+        <Card span={2}>
+          <CardLabel>Fasce di valore · carte da vendere</CardLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+            {[
+              { label: 'Tutte le carte', threshold: 0,  color: 'var(--ink-0)' },
+              { label: 'Valore › €1',    threshold: 1,  color: '#FFCB2E' },
+              { label: 'Valore › €5',    threshold: 5,  color: '#FF9A3B' },
+              { label: 'Valore › €10',   threshold: 10, color: '#2DD881' },
+            ].map(({ label, threshold, color }) => {
+              const group = cards.filter(c => (c.market_price ?? c.cost_basis) > threshold)
+              const total = group.reduce((s, c) => s + (c.market_price ?? c.cost_basis), 0)
+              return (
+                <div key={label} style={{ background: 'var(--bg-2)', borderRadius: 12, padding: '14px 16px' }}>
+                  <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>{label}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, color, marginBottom: 4 }}>{group.length}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--ink-2)' }}>{fmtMoney(total)}</div>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+
       </div>
     </div>
   )
