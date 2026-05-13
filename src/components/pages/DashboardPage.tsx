@@ -1,9 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { ArrowRight, TrendingUp } from 'lucide-react'
 import type { CollectionCardWithPrice } from '@/types'
-import { AreaChart } from '../charts/AreaChart'
 import { CardItem } from '../CardItem'
 
 function fmtMoney(v: number) {
@@ -20,26 +19,6 @@ function fmt2(v: number) {
   return '€' + Math.abs(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-type Range = '30g' | '90g' | '1y' | 'sempre'
-
-function getDashboardChart(cards: CollectionCardWithPrice[], n: number): number[] {
-  const dayValues = new Array(n).fill(0)
-  for (const card of cards) {
-    const history = card.price_history
-    if (history.length === 0) {
-      const val = card.market_price ?? 0
-      dayValues.forEach((_, i) => { dayValues[i] += val })
-    } else {
-      const last = history.slice(-n)
-      const padded = [
-        ...new Array(Math.max(0, n - last.length)).fill(last[0]?.price_eur ?? 0),
-        ...last.map(s => s.price_eur),
-      ]
-      padded.forEach((v, i) => { dayValues[i] += v })
-    }
-  }
-  return dayValues
-}
 
 export function DashboardPage({
   cards,
@@ -52,23 +31,18 @@ export function DashboardPage({
   onToggleFav: (id: string) => void
   onGoCollection: () => void
 }) {
-  const [range, setRange] = useState<Range>('30g')
-
   const totals = useMemo(() => {
     const value = cards.reduce((s, c) => s + (c.market_price ?? 0), 0)
     const cost  = cards.reduce((s, c) => s + c.cost_basis, 0)
     const pl = value - cost
-    const values30 = getDashboardChart(cards, 30)
-    const dayPl = values30.length >= 2 && values30[0] > 0
-      ? ((values30[29] - values30[0]) / values30[0]) * 100
-      : 0
+    const dayPl = (() => {
+      const vals = cards.flatMap(c => c.price_history.slice(-30))
+      if (vals.length < 2) return 0
+      const first = vals[0].price_eur, last = vals[vals.length - 1].price_eur
+      return first > 0 ? ((last - first) / first) * 100 : 0
+    })()
     return { value, cost, pl, dayPl }
   }, [cards])
-
-  const chartValues = useMemo(() => {
-    const n = range === '30g' ? 30 : range === '90g' ? 90 : 365
-    return getDashboardChart(cards, n)
-  }, [cards, range])
 
   const topMover = useMemo(() => {
     if (!cards.length) return null
@@ -100,10 +74,6 @@ export function DashboardPage({
     [cards]
   )
 
-  const chartChange = chartValues.length >= 2
-    ? ((chartValues[chartValues.length - 1] - chartValues[0]) / chartValues[0]) * 100
-    : 0
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Stats strip */}
@@ -129,58 +99,22 @@ export function DashboardPage({
 
       {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px 60px' }}>
-        {/* Chart + Top sets (merged) */}
+        {/* Valore totale + Top sets */}
         <div style={{
           background: 'var(--bg-1)', border: '1px solid var(--line)',
           borderRadius: 18, padding: '22px 24px', marginBottom: 28,
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6, fontWeight: 600 }}>
-                Valore totale collezione
-              </div>
-              <div style={{ fontFamily: 'var(--font-space)', fontSize: 42, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1, color: 'var(--ink-0)' }}>
-                {fmtMoney(totals.value)}
-              </div>
-              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  padding: '3px 10px', borderRadius: 999,
-                  background: totals.dayPl >= 0 ? 'rgba(45,216,129,0.12)' : 'rgba(255,91,71,0.12)',
-                  color: totals.dayPl >= 0 ? '#2DD881' : '#FF5B47',
-                  fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-mono)',
-                }}>
-                  {totals.dayPl >= 0 ? '▲' : '▼'} {fmtPct(totals.dayPl)}
-                </span>
-                <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>negli ultimi 30 giorni</span>
-              </div>
-            </div>
-            {/* Range pills */}
-            <div style={{ display: 'flex', gap: 4 }}>
-              {(['30g', '90g', '1y', 'sempre'] as Range[]).map(r => (
-                <button key={r} onClick={() => setRange(r)} style={{
-                  padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 500,
-                  border: 'none', cursor: 'pointer',
-                  background: range === r ? 'rgba(255,203,46,0.15)' : 'var(--bg-2)',
-                  color: range === r ? '#FFCB2E' : 'var(--ink-3)',
-                }}>
-                  {r === '30g' ? '30g' : r === '90g' ? '90g' : r === '1y' ? '1a' : 'Tutto'}
-                </button>
-              ))}
-            </div>
+          <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6, fontWeight: 600 }}>
+            Valore totale collezione
           </div>
-          <AreaChart values={chartValues} color="#FFCB2E" height={140} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>
-            <span>Min {fmtMoney(Math.min(...chartValues))}</span>
-            <span style={{ color: chartChange >= 0 ? '#2DD881' : '#FF5B47' }}>{fmtPct(chartChange)} nel periodo</span>
-            <span>Max {fmtMoney(Math.max(...chartValues))}</span>
+          <div style={{ fontFamily: 'var(--font-space)', fontSize: 42, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1, color: 'var(--ink-0)', marginBottom: 20 }}>
+            {fmtMoney(totals.value)}
           </div>
 
           {topSets.length > 0 && (() => {
             const maxVal = topSets[0].value
             return (
               <>
-                <div style={{ height: 1, background: 'var(--line)', margin: '20px 0' }} />
                 <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 600, marginBottom: 14 }}>
                   Top set per valore
                 </div>
