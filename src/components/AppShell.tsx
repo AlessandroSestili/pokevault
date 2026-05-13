@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, Layers, Eye, Settings,
-  Plus, Upload, Search, LogOut,
+  Plus, Upload, Search, LogOut, BarChart2,
 } from 'lucide-react'
 import type { CollectionCardWithPrice, MagicCardWithPrice, ActiveGame } from '@/types'
 import { editCardAction } from '@/lib/actions'
@@ -18,10 +18,12 @@ import { ImportCsvModal } from './modals/ImportCsvModal'
 import { MagicCollectionShell } from './magic/MagicCollectionShell'
 import { MagicDashboardPage } from './magic/MagicDashboardPage'
 import { MagicDetailSheet } from './magic/MagicDetailSheet'
+import { MagicAnalyticsPage } from './magic/MagicAnalyticsPage'
 import { AddMagicCardModal } from './modals/AddMagicCardModal'
 import { GameLogo } from './ui/GameLogo'
+import { AnalyticsPage } from './pages/AnalyticsPage'
 
-type Page = 'dashboard' | 'collection' | 'watchlist' | 'settings'
+type Page = 'dashboard' | 'collection' | 'watchlist' | 'analytics' | 'settings'
 
 const GAMES: { id: ActiveGame; label: string; icon: string; color: string; disabled?: boolean }[] = [
   { id: 'pokemon', label: 'Pokémon TCG',          icon: '⚡', color: '#FFCB2E' },
@@ -111,9 +113,10 @@ export function AppShell({
   const navItems = [
     { id: 'dashboard'  as Page, label: 'Dashboard',    Icon: LayoutDashboard, count: null },
     { id: 'collection' as Page, label: 'Collezione',   Icon: Layers,
-      count: activeGame === 'magic' ? initialMagicCards.length : cards.length },
+      count: activeGame === 'magic' ? magicCards.length : cards.length },
     { id: 'watchlist'  as Page, label: 'Watchlist',    Icon: Eye,
       count: activeGame === 'magic' ? magicFavCount : favCount },
+    { id: 'analytics'  as Page, label: 'Analytics',    Icon: BarChart2, count: null },
     { id: 'settings'   as Page, label: 'Impostazioni', Icon: Settings, count: null },
   ]
 
@@ -231,8 +234,9 @@ export function AppShell({
         <header className="topbar">
           <h2 className="topbar__title">
             {page === 'dashboard'  && <>Dashboard <span>· panoramica</span></>}
-            {page === 'collection' && <>Collezione <span>· {activeGame === 'magic' ? initialMagicCards.length : cards.length} carte</span></>}
+            {page === 'collection' && <>Collezione <span>· {activeGame === 'magic' ? magicCards.length : cards.length} carte</span></>}
             {page === 'watchlist'  && <>Watchlist <span>· {activeGame === 'magic' ? magicFavCount : favCount} preferite</span></>}
+            {page === 'analytics'  && <>Analytics <span>· insights</span></>}
             {page === 'settings'   && <>Impostazioni</>}
           </h2>
 
@@ -249,7 +253,7 @@ export function AppShell({
 
           <div className="spacer" />
 
-          {page !== 'settings' && activeGame === 'pokemon' && (
+          {page !== 'settings' && page !== 'analytics' && activeGame === 'pokemon' && (
             <>
               <button className="btn" onClick={() => setImportOpen(true)}>
                 <Upload size={13} /> Importa
@@ -259,7 +263,7 @@ export function AppShell({
               </button>
             </>
           )}
-          {page !== 'settings' && activeGame === 'magic' && (
+          {page !== 'settings' && page !== 'analytics' && activeGame === 'magic' && (
             <button
               className="btn btn--primary"
               onClick={() => setAddMagicOpen(true)}
@@ -303,6 +307,12 @@ export function AppShell({
               search={search}
               favoritesOnly={page === 'watchlist'}
             />
+          )}
+          {activeGame === 'pokemon' && page === 'analytics' && (
+            <AnalyticsPage cards={cards} />
+          )}
+          {activeGame === 'magic' && page === 'analytics' && (
+            <MagicAnalyticsPage cards={magicCards} />
           )}
           {page === 'settings' && <SettingsPage />}
         </div>
