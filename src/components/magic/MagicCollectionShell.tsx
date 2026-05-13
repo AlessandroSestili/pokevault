@@ -24,15 +24,24 @@ import { filterMagicCards, sortMagicCards, type MagicSortKey } from '@/lib/filte
 
 type SortKey = MagicSortKey
 
+const VALUE_THRESHOLDS = [
+  { label: 'Tutte', value: null },
+  { label: '›€1',  value: 1 },
+  { label: '›€5',  value: 5 },
+  { label: '›€10', value: 10 },
+] as const
+
 export function MagicCollectionShell({
   initialCards,
   search,
   favoritesOnly,
+  minValue: initialMinValue = null,
   onOpenSearch,
 }: {
   initialCards: MagicCardWithPrice[]
   search: string
   favoritesOnly: boolean
+  minValue?: number | null
   onOpenSearch?: () => void
 }) {
   const [cards, setCards] = useState(initialCards)
@@ -40,7 +49,10 @@ export function MagicCollectionShell({
   const [sort, setSort] = useState<SortKey>('recent')
   const [colorFilter, setColorFilter] = useState<MagicColor | null>(null)
   const [foilOnly, setFoilOnly] = useState(false)
+  const [minValueFilter, setMinValueFilter] = useState<number | null>(initialMinValue)
   const [addOpen, setAddOpen] = useState(false)
+
+  useEffect(() => { setMinValueFilter(initialMinValue) }, [initialMinValue])
   const [selectedCard, setSelectedCard] = useState<MagicCardWithPrice | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
@@ -76,9 +88,11 @@ export function MagicCollectionShell({
     () => {
       let base = cards
       if (drillSet) base = base.filter(c => c.set_name === drillSet)
-      return sortMagicCards(filterMagicCards(base, search, colorFilter, foilOnly, favoritesOnly), sort)
+      let result = filterMagicCards(base, search, colorFilter, foilOnly, favoritesOnly)
+      if (minValueFilter !== null) result = result.filter(c => (c.market_price ?? c.cost_basis) > minValueFilter)
+      return sortMagicCards(result, sort)
     },
-    [cards, search, colorFilter, foilOnly, favoritesOnly, sort, drillSet]
+    [cards, search, colorFilter, foilOnly, favoritesOnly, minValueFilter, sort, drillSet]
   )
 
   const totalValue = cards.reduce((acc, c) => acc + (c.market_price ?? c.cost_basis), 0)
@@ -178,6 +192,28 @@ export function MagicCollectionShell({
                   }}
                 >
                   <MagicManaIcon color={c} size={22} />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {viewMode === 'cards' && <div style={{ width: 1, height: 20, background: 'var(--line)' }} />}
+
+          {/* Value threshold chips */}
+          {viewMode === 'cards' && (
+            <div style={{ display: 'flex', gap: 4 }}>
+              {VALUE_THRESHOLDS.map(t => (
+                <button
+                  key={String(t.value)}
+                  onClick={() => setMinValueFilter(minValueFilter === t.value ? null : t.value)}
+                  style={{
+                    padding: '4px 9px', borderRadius: 8, fontSize: 11, fontWeight: 500,
+                    border: 'none', cursor: 'pointer',
+                    background: minValueFilter === t.value ? 'rgba(45,216,129,0.15)' : 'var(--bg-2)',
+                    color: minValueFilter === t.value ? '#2DD881' : 'var(--ink-3)',
+                  }}
+                >
+                  {t.label}
                 </button>
               ))}
             </div>

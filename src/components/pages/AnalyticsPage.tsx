@@ -79,7 +79,7 @@ function DotRow({ label, count, total, color, value }: { label: string; count: n
 
 // ── Main component ──────────────────────────────────────────────────────────
 
-export function AnalyticsPage({ cards }: { cards: CollectionCardWithPrice[] }) {
+export function AnalyticsPage({ cards, onGoCollectionMinValue }: { cards: CollectionCardWithPrice[]; onGoCollectionMinValue?: (min: number) => void }) {
   const [range, setRange] = useState<Range>('30g')
 
   const totalValue = cards.reduce((s, c) => s + (c.market_price ?? 0), 0)
@@ -387,11 +387,23 @@ export function AnalyticsPage({ cards }: { cards: CollectionCardWithPrice[] }) {
             ].map(({ label, threshold, color }) => {
               const group = cards.filter(c => (c.market_price ?? 0) > threshold)
               const total = group.reduce((s, c) => s + (c.market_price ?? 0), 0)
+              const clickable = threshold > 0 && !!onGoCollectionMinValue
               return (
-                <div key={label} style={{ background: 'var(--bg-2)', borderRadius: 12, padding: '14px 16px' }}>
+                <div
+                  key={label}
+                  onClick={() => clickable && onGoCollectionMinValue!(threshold)}
+                  style={{
+                    background: 'var(--bg-2)', borderRadius: 12, padding: '14px 16px',
+                    cursor: clickable ? 'pointer' : 'default',
+                    transition: 'background 140ms',
+                  }}
+                  onMouseEnter={e => { if (clickable) (e.currentTarget as HTMLElement).style.background = 'var(--bg-3)' }}
+                  onMouseLeave={e => { if (clickable) (e.currentTarget as HTMLElement).style.background = 'var(--bg-2)' }}
+                >
                   <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>{label}</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, color, marginBottom: 4 }}>{group.length}</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--ink-2)' }}>{fmtMoney(total)}</div>
+                  {clickable && <div style={{ fontSize: 10, color, marginTop: 6, opacity: 0.7 }}>→ Vedi in collezione</div>}
                 </div>
               )
             })}

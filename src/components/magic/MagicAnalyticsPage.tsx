@@ -50,7 +50,7 @@ const COLOR_NAMES: Record<MagicColor, string> = {
   W: 'Bianco', U: 'Blu', B: 'Nero', R: 'Rosso', G: 'Verde',
 }
 
-export function MagicAnalyticsPage({ cards }: { cards: MagicCardWithPrice[] }) {
+export function MagicAnalyticsPage({ cards, onGoCollectionMinValue }: { cards: MagicCardWithPrice[]; onGoCollectionMinValue?: (min: number) => void }) {
   const totalValue = cards.reduce((s, c) => s + (c.market_price ?? c.cost_basis), 0)
   const totalCost  = cards.reduce((s, c) => s + c.cost_basis, 0)
   const pl         = totalValue - totalCost
@@ -369,11 +369,23 @@ export function MagicAnalyticsPage({ cards }: { cards: MagicCardWithPrice[] }) {
             ].map(({ label, threshold, color }) => {
               const group = cards.filter(c => (c.market_price ?? c.cost_basis) > threshold)
               const total = group.reduce((s, c) => s + (c.market_price ?? c.cost_basis), 0)
+              const clickable = threshold > 0 && !!onGoCollectionMinValue
               return (
-                <div key={label} style={{ background: 'var(--bg-2)', borderRadius: 12, padding: '14px 16px' }}>
+                <div
+                  key={label}
+                  onClick={() => clickable && onGoCollectionMinValue!(threshold)}
+                  style={{
+                    background: 'var(--bg-2)', borderRadius: 12, padding: '14px 16px',
+                    cursor: clickable ? 'pointer' : 'default',
+                    transition: 'background 140ms',
+                  }}
+                  onMouseEnter={e => { if (clickable) (e.currentTarget as HTMLElement).style.background = 'var(--bg-3)' }}
+                  onMouseLeave={e => { if (clickable) (e.currentTarget as HTMLElement).style.background = 'var(--bg-2)' }}
+                >
                   <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>{label}</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, color, marginBottom: 4 }}>{group.length}</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--ink-2)' }}>{fmtMoney(total)}</div>
+                  {clickable && <div style={{ fontSize: 10, color, marginTop: 6, opacity: 0.7 }}>→ Vedi in collezione</div>}
                 </div>
               )
             })}

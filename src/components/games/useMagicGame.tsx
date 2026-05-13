@@ -21,6 +21,7 @@ export function useMagicGame(
   const [selectedCard, setSelectedCard] = useState<MagicCardWithPrice | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
+  const [minValueFilter, setMinValueFilter] = useState<number | null>(null)
 
   useEffect(() => { setCards(initialCards) }, [initialCards])
 
@@ -45,11 +46,11 @@ export function useMagicGame(
       case 'dashboard':
         return <MagicDashboardPage cards={cards} onOpenCard={openCard} onToggleFav={toggleFav} onGoCollection={() => setPage('collection')} />
       case 'collection':
-        return <MagicCollectionShell initialCards={cards} search={search} favoritesOnly={false} />
+        return <MagicCollectionShell initialCards={cards} search={search} favoritesOnly={false} minValue={minValueFilter} />
       case 'watchlist':
         return <MagicCollectionShell initialCards={cards} search={search} favoritesOnly={true} />
       case 'analytics':
-        return <MagicAnalyticsPage cards={cards} />
+        return <MagicAnalyticsPage cards={cards} onGoCollectionMinValue={min => { setMinValueFilter(min); setPage('collection') }} />
       default:
         return null
     }

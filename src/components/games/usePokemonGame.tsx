@@ -23,6 +23,7 @@ export function usePokemonGame(
   const [sheetOpen, setSheetOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [minValueFilter, setMinValueFilter] = useState<number | null>(null)
 
   useEffect(() => { setCards(initialCards) }, [initialCards])
 
@@ -47,11 +48,11 @@ export function usePokemonGame(
       case 'dashboard':
         return <DashboardPage cards={cards} onOpenCard={openCard} onToggleFav={toggleFav} onGoCollection={() => setPage('collection')} />
       case 'collection':
-        return <CollectionPage cards={cards} search={search} favoritesOnly={false} onOpenCard={openCard} onToggleFav={toggleFav} onAdd={() => setAddOpen(true)} />
+        return <CollectionPage cards={cards} search={search} favoritesOnly={false} minValue={minValueFilter} onOpenCard={openCard} onToggleFav={toggleFav} onAdd={() => setAddOpen(true)} />
       case 'watchlist':
         return <CollectionPage cards={cards} search={search} favoritesOnly={true} onOpenCard={openCard} onToggleFav={toggleFav} onAdd={() => setAddOpen(true)} />
       case 'analytics':
-        return <AnalyticsPage cards={cards} />
+        return <AnalyticsPage cards={cards} onGoCollectionMinValue={min => { setMinValueFilter(min); setPage('collection') }} />
       default:
         return null
     }

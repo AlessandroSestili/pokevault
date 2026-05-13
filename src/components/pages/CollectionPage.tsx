@@ -49,10 +49,18 @@ function sortCards(cards: CollectionCardWithPrice[], sort: SortKey): CollectionC
   }
 }
 
+const VALUE_THRESHOLDS = [
+  { label: 'Tutte', value: null },
+  { label: '›€1',  value: 1 },
+  { label: '›€5',  value: 5 },
+  { label: '›€10', value: 10 },
+] as const
+
 export function CollectionPage({
   cards,
   search,
   favoritesOnly,
+  minValue: initialMinValue = null,
   onOpenCard,
   onToggleFav,
   onAdd,
@@ -60,6 +68,7 @@ export function CollectionPage({
   cards: CollectionCardWithPrice[]
   search: string
   favoritesOnly: boolean
+  minValue?: number | null
   onOpenCard: (card: CollectionCardWithPrice) => void
   onToggleFav: (id: string) => void
   onAdd?: () => void
@@ -67,10 +76,12 @@ export function CollectionPage({
   const [elemFilter, setElemFilter] = useState<string | null>(null)
   const [sort, setSort] = useState<SortKey>('value')
   const [favOnly, setFavOnly] = useState(favoritesOnly)
+  const [minValueFilter, setMinValueFilter] = useState<number | null>(initialMinValue)
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [drillSet, setDrillSet] = useState<string | null>(null)
 
   useEffect(() => { setFavOnly(favoritesOnly) }, [favoritesOnly])
+  useEffect(() => { setMinValueFilter(initialMinValue) }, [initialMinValue])
 
   const setGroups = useMemo<SetGroup[]>(() => {
     const map = new Map<string, SetGroup>()
@@ -104,8 +115,9 @@ export function CollectionPage({
     )
     if (elemFilter) arr = arr.filter(c => (c.element ?? '').toLowerCase() === elemFilter)
     if (favOnly) arr = arr.filter(c => c.is_favorite)
+    if (minValueFilter !== null) arr = arr.filter(c => (c.market_price ?? 0) > minValueFilter)
     return sortCards(arr, sort)
-  }, [cards, search, elemFilter, favOnly, sort, drillSet])
+  }, [cards, search, elemFilter, favOnly, minValueFilter, sort, drillSet])
 
   const totalValue = cards.reduce((acc, c) => acc + (c.market_price ?? 0), 0)
   const totalCost  = cards.reduce((acc, c) => acc + c.cost_basis, 0)
@@ -183,6 +195,28 @@ export function CollectionPage({
                 } as React.CSSProperties}
               >
                 <PokemonTypeIcon type={e.key} size={22} />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {viewMode === 'cards' && <div style={{ width: 1, height: 20, background: 'var(--line)' }} />}
+
+        {/* Value threshold chips */}
+        {viewMode === 'cards' && (
+          <div style={{ display: 'flex', gap: 4 }}>
+            {VALUE_THRESHOLDS.map(t => (
+              <button
+                key={String(t.value)}
+                onClick={() => setMinValueFilter(minValueFilter === t.value ? null : t.value)}
+                style={{
+                  padding: '4px 9px', borderRadius: 8, fontSize: 11, fontWeight: 500,
+                  border: 'none', cursor: 'pointer',
+                  background: minValueFilter === t.value ? 'rgba(45,216,129,0.15)' : 'var(--bg-2)',
+                  color: minValueFilter === t.value ? '#2DD881' : 'var(--ink-3)',
+                }}
+              >
+                {t.label}
               </button>
             ))}
           </div>
