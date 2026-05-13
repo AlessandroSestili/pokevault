@@ -17,8 +17,9 @@ export async function checkAndSendAlerts(
   const triggered: { alert: typeof alerts[0]; price: number; cardName: string }[] = []
 
   for (const alert of alerts) {
+    const snapshotTable = game === 'magic' ? 'magic_price_snapshots' : 'price_snapshots'
     const { data: snap } = await supabase
-      .from('price_snapshots')
+      .from(snapshotTable)
       .select('price_eur')
       .eq('card_id', alert.card_id)
       .eq('date', today)

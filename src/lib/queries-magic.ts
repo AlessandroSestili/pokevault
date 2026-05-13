@@ -1,4 +1,4 @@
-import { createClient } from './supabase/server'
+import { createClient, createAdminClient } from './supabase/server'
 import { makeTableCRUD } from './db'
 import type { MagicCard, MagicCardWithPrice } from '@/types'
 
@@ -17,3 +17,12 @@ const crud = makeTableCRUD('magic_cards', 'MagicCard')
 export const insertMagicCard = (data: Omit<MagicCard, 'id' | 'created_at'>) => crud.insert(data)
 export const updateMagicCard = (id: string, patch: Partial<Omit<MagicCard, 'id' | 'created_at'>>) => crud.update(id, patch)
 export const deleteMagicCard = (id: string) => crud.remove(id)
+
+export async function upsertMagicPriceSnapshot(cardId: string, date: string, priceEur: number): Promise<void> {
+  const supabase = createAdminClient()
+  const { error } = await supabase.from('magic_price_snapshots').upsert(
+    { card_id: cardId, date, price_eur: priceEur },
+    { onConflict: 'card_id,date' }
+  )
+  if (error) console.error('[upsertMagicPriceSnapshot]', JSON.stringify(error))
+}

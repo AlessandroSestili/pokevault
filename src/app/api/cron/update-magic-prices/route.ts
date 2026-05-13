@@ -2,7 +2,7 @@ export const maxDuration = 60
 
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
-import { upsertPriceSnapshot } from '@/lib/queries'
+import { upsertMagicPriceSnapshot } from '@/lib/queries-magic'
 import { checkAndSendAlerts } from '@/lib/alerts'
 
 const DELAY_MS = 100
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
       : parseFloat(prices.eur ?? '0') || null
 
     if (price) {
-      await upsertPriceSnapshot(card.id, today, price)
+      await upsertMagicPriceSnapshot(card.id, today, price)
       updated++
     } else {
       skipped++

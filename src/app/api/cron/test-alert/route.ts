@@ -2,7 +2,7 @@ export const maxDuration = 30
 
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
-import { upsertPriceSnapshot } from '@/lib/queries'
+import { upsertMagicPriceSnapshot } from '@/lib/queries-magic'
 import { checkAndSendAlerts } from '@/lib/alerts'
 
 export async function GET(req: Request) {
@@ -34,7 +34,7 @@ export async function GET(req: Request) {
         : parseFloat(prices.eur ?? '0') || null
 
       if (price) {
-        await upsertPriceSnapshot(alert.card_id, today, price)
+        await upsertMagicPriceSnapshot(alert.card_id, today, price)
         updated.push(`${card.name}: €${price}`)
       }
     }
