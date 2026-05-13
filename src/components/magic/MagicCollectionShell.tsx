@@ -20,42 +20,9 @@ import { MagicDetailSheet } from './MagicDetailSheet'
 import { AddMagicCardModal } from '@/components/modals/AddMagicCardModal'
 import { editMagicCardAction } from '@/lib/actions-magic'
 import { MagicManaIcon } from '@/components/ui/MagicManaIcon'
+import { filterMagicCards, sortMagicCards, type MagicSortKey } from '@/lib/filters-magic'
 
-type SortKey = 'recent' | 'alpha' | 'value' | 'cmc'
-
-
-function sortCards(cards: MagicCardWithPrice[], sort: SortKey): MagicCardWithPrice[] {
-  const arr = [...cards]
-  switch (sort) {
-    case 'recent': return arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    case 'alpha':  return arr.sort((a, b) => a.name.localeCompare(b.name))
-    case 'value':  return arr.sort((a, b) => (b.market_price ?? b.cost_basis) - (a.market_price ?? a.cost_basis))
-    case 'cmc':    return arr.sort((a, b) => a.cmc - b.cmc)
-  }
-}
-
-function filterCards(
-  cards: MagicCardWithPrice[],
-  search: string,
-  colorFilter: MagicColor | null,
-  foilOnly: boolean,
-  favOnly: boolean,
-): MagicCardWithPrice[] {
-  let result = cards
-  if (search.trim()) {
-    const q = search.toLowerCase()
-    result = result.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      c.set_name.toLowerCase().includes(q) ||
-      c.collector_number.includes(q) ||
-      (c.type_line ?? '').toLowerCase().includes(q)
-    )
-  }
-  if (colorFilter) result = result.filter(c => c.colors?.includes(colorFilter))
-  if (foilOnly) result = result.filter(c => c.foil)
-  if (favOnly) result = result.filter(c => c.is_favorite)
-  return result
-}
+type SortKey = MagicSortKey
 
 export function MagicCollectionShell({
   initialCards,
@@ -109,7 +76,7 @@ export function MagicCollectionShell({
     () => {
       let base = cards
       if (drillSet) base = base.filter(c => c.set_name === drillSet)
-      return sortCards(filterCards(base, search, colorFilter, foilOnly, favoritesOnly), sort)
+      return sortMagicCards(filterMagicCards(base, search, colorFilter, foilOnly, favoritesOnly), sort)
     },
     [cards, search, colorFilter, foilOnly, favoritesOnly, sort, drillSet]
   )
