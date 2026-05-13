@@ -1,5 +1,16 @@
 // Core domain types for PokeVault
 
+export interface PriceAlert {
+  id: string
+  user_id: string
+  card_id: string
+  game: 'pokemon' | 'magic'
+  threshold_eur: number
+  last_triggered_price: number | null
+  created_at: string
+  updated_at: string
+}
+
 export type Language = "IT" | "EN" | "JP" | "DE" | "FR" | "ES" | "PT" | "KO" | "ZH";
 
 export type Condition =

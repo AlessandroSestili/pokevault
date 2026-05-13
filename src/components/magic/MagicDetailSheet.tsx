@@ -6,6 +6,7 @@ import type { MagicCardWithPrice, MagicColor, MagicCondition } from '@/types'
 import { editMagicCardAction, deleteMagicCardAction } from '@/lib/actions-magic'
 import { MagicManaIcon } from '@/components/ui/MagicManaIcon'
 import { fmtMoney } from '@/lib/fmt'
+import { PriceAlertWidget } from '@/components/ui/PriceAlertWidget'
 
 const CONDITIONS: MagicCondition[] = ['NM', 'LP', 'MP', 'HP', 'DMG']
 const CONDITION_LABEL: Record<MagicCondition, string> = {
@@ -217,6 +218,9 @@ export function MagicDetailSheet({
                 </div>
               ))}
             </div>
+
+            {/* Price alert */}
+            <PriceAlertWidget cardId={card.id} game="magic" currentPrice={card.market_price ?? card.cost_basis} />
 
             {/* Details / Edit section */}
             <div style={{ padding: '18px 20px', flex: 1 }}>

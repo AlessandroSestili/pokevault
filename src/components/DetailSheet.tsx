@@ -8,6 +8,7 @@ import { PokemonTypeIcon } from './ui/PokemonTypeIcon'
 import { AreaChart } from './charts/AreaChart'
 import { deleteCardAction, editCardAction } from '@/lib/actions'
 import { fmtMoney, fmtPct } from '@/lib/fmt'
+import { PriceAlertWidget } from './ui/PriceAlertWidget'
 
 const LANGUAGES: Language[] = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
 const SOURCES: Source[] = ['Cardmarket', 'eBay', 'TCGPlayer', 'Negozio locale', 'Scambio', 'Asta', 'Altro']
@@ -189,6 +190,9 @@ export function DetailSheet({
                 </div>
               ))}
             </div>
+
+            {/* Price alert */}
+            <PriceAlertWidget cardId={card.id} game="pokemon" currentPrice={card.market_price} />
 
             {/* Price chart */}
             {allHistory.length >= 2 && (

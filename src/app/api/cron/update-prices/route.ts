@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { getMinNMPrice, searchBlueprintsByName } from '@/lib/api/cardtrader'
 import { upsertPriceSnapshot } from '@/lib/queries'
+import { checkAndSendAlerts } from '@/lib/alerts'
 
 // Stay well under the 200 req/10s rate limit
 const DELAY_MS = 60
@@ -16,7 +17,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const today = new Date().toISOString().slice(0, 10)
   let updated = 0
   let skipped = 0
@@ -58,6 +59,8 @@ export async function GET(req: Request) {
       skipped++
     }
   }
+
+  await checkAndSendAlerts('pokemon', supabase, today)
 
   return NextResponse.json({ updated, skipped, date: today })
 }
