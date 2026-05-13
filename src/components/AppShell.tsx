@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import type { CollectionCardWithPrice, MagicCardWithPrice, ActiveGame } from '@/types'
 import { editCardAction } from '@/lib/actions'
+import { editMagicCardAction } from '@/lib/actions-magic'
 import { createClient } from '@/lib/supabase/client'
 import { DashboardPage } from './pages/DashboardPage'
 import { CollectionPage } from './pages/CollectionPage'
@@ -15,6 +16,8 @@ import { DetailSheet } from './DetailSheet'
 import { AddCardModal } from './modals/AddCardModal'
 import { ImportCsvModal } from './modals/ImportCsvModal'
 import { MagicCollectionShell } from './magic/MagicCollectionShell'
+import { MagicDashboardPage } from './magic/MagicDashboardPage'
+import { MagicDetailSheet } from './magic/MagicDetailSheet'
 import { AddMagicCardModal } from './modals/AddMagicCardModal'
 import { GameLogo } from './ui/GameLogo'
 
@@ -38,6 +41,7 @@ export function AppShell({
   user: AppUser | null
 }) {
   const [cards, setCards] = useState(initialCards)
+  const [magicCards, setMagicCards] = useState(initialMagicCards)
   const [page, setPage] = useState<Page>('dashboard')
   const [search, setSearch] = useState('')
   const [selectedCard, setSelectedCard] = useState<CollectionCardWithPrice | null>(null)
@@ -45,9 +49,12 @@ export function AppShell({
   const [addOpen, setAddOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [addMagicOpen, setAddMagicOpen] = useState(false)
+  const [selectedMagicCard, setSelectedMagicCard] = useState<MagicCardWithPrice | null>(null)
+  const [magicSheetOpen, setMagicSheetOpen] = useState(false)
   const [activeGame, setActiveGame] = useState<ActiveGame>('pokemon')
 
   useEffect(() => { setCards(initialCards) }, [initialCards])
+  useEffect(() => { setMagicCards(initialMagicCards) }, [initialMagicCards])
 
   useEffect(() => {
     const saved = localStorage.getItem('tcgvault_game') as ActiveGame | null
@@ -85,8 +92,21 @@ export function AppShell({
     await editCardAction(id, { is_favorite: newFav })
   }
 
+  function openMagicCard(card: MagicCardWithPrice) {
+    setSelectedMagicCard(card); setMagicSheetOpen(true)
+  }
+
+  async function toggleMagicFav(id: string) {
+    const card = magicCards.find(c => c.id === id)
+    if (!card) return
+    const newFav = !card.is_favorite
+    setMagicCards(prev => prev.map(c => c.id === id ? { ...c, is_favorite: newFav } : c))
+    if (selectedMagicCard?.id === id) setSelectedMagicCard(prev => prev ? { ...prev, is_favorite: newFav } : prev)
+    await editMagicCardAction(id, { is_favorite: newFav })
+  }
+
   const favCount = cards.filter(c => c.is_favorite).length
-  const magicFavCount = initialMagicCards.filter(c => c.is_favorite).length
+  const magicFavCount = magicCards.filter(c => c.is_favorite).length
 
   const navItems = [
     { id: 'dashboard'  as Page, label: 'Dashboard',    Icon: LayoutDashboard, count: null },
@@ -269,9 +289,17 @@ export function AppShell({
               onAdd={() => setAddOpen(true)}
             />
           )}
-          {activeGame === 'magic' && (page === 'dashboard' || page === 'collection' || page === 'watchlist') && (
+          {activeGame === 'magic' && page === 'dashboard' && (
+            <MagicDashboardPage
+              cards={magicCards}
+              onOpenCard={openMagicCard}
+              onToggleFav={toggleMagicFav}
+              onGoCollection={() => setPage('collection')}
+            />
+          )}
+          {activeGame === 'magic' && (page === 'collection' || page === 'watchlist') && (
             <MagicCollectionShell
-              initialCards={initialMagicCards}
+              initialCards={magicCards}
               search={search}
               favoritesOnly={page === 'watchlist'}
             />
@@ -289,7 +317,10 @@ export function AppShell({
         </>
       )}
       {activeGame === 'magic' && (
-        <AddMagicCardModal open={addMagicOpen} onClose={() => setAddMagicOpen(false)} />
+        <>
+          <MagicDetailSheet card={selectedMagicCard} open={magicSheetOpen} onClose={() => setMagicSheetOpen(false)} onToggleFav={toggleMagicFav} />
+          <AddMagicCardModal open={addMagicOpen} onClose={() => setAddMagicOpen(false)} />
+        </>
       )}
     </div>
   )
