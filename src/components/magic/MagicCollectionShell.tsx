@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useEffect, useMemo, useTransition } from 'react'
+import { useState, useEffect, useMemo, useTransition, useRef, useCallback } from 'react'
+
+const PAGE_SIZE = 80
 import { Plus, Search, Star, Grid3X3, List, SlidersHorizontal, Layers, ChevronLeft } from 'lucide-react'
 import type { MagicCardWithPrice, MagicColor } from '@/types'
 
@@ -58,6 +60,8 @@ export function MagicCollectionShell({
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [drillSet, setDrillSet] = useState<string | null>(null)
   const [, startTransition] = useTransition()
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const sentinelRef = useRef<HTMLDivElement>(null)
 
   const setGroups = useMemo<MagicSetGroup[]>(() => {
     const map = new Map<string, MagicSetGroup>()
@@ -94,6 +98,23 @@ export function MagicCollectionShell({
     },
     [cards, search, colorFilter, foilOnly, favoritesOnly, minValueFilter, sort, drillSet]
   )
+
+  useEffect(() => { setVisibleCount(PAGE_SIZE) }, [filtered])
+
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount(prev => Math.min(prev + PAGE_SIZE, filtered.length))
+        }
+      },
+      { rootMargin: '300px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [filtered.length, visibleCount])
 
   const totalValue = cards.reduce((acc, c) => acc + (c.market_price ?? c.cost_basis), 0)
   const totalCost = cards.reduce((acc, c) => acc + c.cost_basis, 0)
@@ -323,20 +344,23 @@ export function MagicCollectionShell({
           ) : filtered.length === 0 ? (
             <EmptyState onAdd={() => setAddOpen(true)} />
           ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-              gap: 14,
-            }}>
-              {filtered.map(card => (
-                <MagicCardItem
-                  key={card.id}
-                  card={card}
-                  onClick={openCard}
-                  onToggleFav={toggleFav}
-                />
-              ))}
-            </div>
+            <>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                gap: 14,
+              }}>
+                {filtered.slice(0, visibleCount).map(card => (
+                  <MagicCardItem
+                    key={card.id}
+                    card={card}
+                    onClick={openCard}
+                    onToggleFav={toggleFav}
+                  />
+                ))}
+              </div>
+              <div ref={sentinelRef} style={{ height: 1 }} />
+            </>
           )}
         </div>
       </div>

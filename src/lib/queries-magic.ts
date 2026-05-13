@@ -8,6 +8,7 @@ export async function fetchMagicCards(): Promise<MagicCardWithPrice[]> {
     .from('magic_cards')
     .select('*')
     .order('created_at', { ascending: false })
+    .limit(10000)
   if (error) { console.error('[fetchMagicCards]', error); return [] }
   return (data ?? []).map(c => ({ ...c, market_price: null }))
 }
