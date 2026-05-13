@@ -5,7 +5,7 @@ import { X, Star, Pencil, Trash2, FlipHorizontal } from 'lucide-react'
 import type { MagicCardWithPrice, MagicColor, MagicCondition } from '@/types'
 import { editMagicCardAction, deleteMagicCardAction } from '@/lib/actions-magic'
 import { MagicManaIcon } from '@/components/ui/MagicManaIcon'
-
+import { fmtMoney } from '@/lib/fmt'
 
 const CONDITIONS: MagicCondition[] = ['NM', 'LP', 'MP', 'HP', 'DMG']
 const CONDITION_LABEL: Record<MagicCondition, string> = {
@@ -14,11 +14,6 @@ const CONDITION_LABEL: Record<MagicCondition, string> = {
 }
 const CONDITION_COLOR: Record<MagicCondition, string> = {
   NM: '#2DD881', LP: '#FFCB2E', MP: '#FF9A3B', HP: '#FF5B47', DMG: '#B07BFF',
-}
-
-function fmtMoney(v: number | null) {
-  if (v == null) return '—'
-  return '€' + Math.abs(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function fmtDate(iso: string) {

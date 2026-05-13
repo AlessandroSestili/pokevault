@@ -3,7 +3,7 @@
 import { Star } from 'lucide-react'
 import type { MagicCardWithPrice, MagicColor } from '@/types'
 import { MagicManaIcon } from '@/components/ui/MagicManaIcon'
-
+import { fmtMoney } from '@/lib/fmt'
 
 const CONDITION_COLOR: Record<string, string> = {
   NM:  '#2DD881',
@@ -13,10 +13,6 @@ const CONDITION_COLOR: Record<string, string> = {
   DMG: '#B07BFF',
 }
 
-function fmtMoney(v: number | null) {
-  if (v == null) return '—'
-  return '€' + v.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
 
 export function MagicCardItem({
   card,

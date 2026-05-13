@@ -3,14 +3,7 @@
 import { Star } from 'lucide-react'
 import type { CollectionCardWithPrice } from '@/types'
 import { getElement } from '@/lib/elements'
-
-function fmtMoney(v: number | null) {
-  if (v == null) return '—'
-  return '€' + Math.abs(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-function fmtPct(v: number) {
-  return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1) + '%'
-}
+import { fmtMoney, fmtPct } from '@/lib/fmt'
 
 export function ListRow({
   card,

@@ -3,14 +3,7 @@
 import { useMemo } from 'react'
 import type { MagicCardWithPrice, MagicColor } from '@/types'
 import { MagicManaIcon } from '@/components/ui/MagicManaIcon'
-
-function fmt(v: number) {
-  const n = Math.abs(v)
-  const s = n >= 1000
-    ? n.toLocaleString('it-IT', { maximumFractionDigits: 0 })
-    : n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return (v < 0 ? '−' : '') + '€' + s
-}
+import { fmtMoney } from '@/lib/fmt'
 
 function Card({ children, span = 1, style = {} }: { children: React.ReactNode; span?: 1 | 2; style?: React.CSSProperties }) {
   return (
@@ -38,7 +31,7 @@ function HBar({ label, value, max, color, sub }: { label: string; value: number;
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
         <span style={{ color: 'var(--ink-1)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '55%' }}>{label}</span>
-        <span style={{ color: 'var(--ink-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{sub ?? fmt(value)}</span>
+        <span style={{ color: 'var(--ink-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{sub ?? fmtMoney(value)}</span>
       </div>
       <div style={{ height: 4, borderRadius: 4, background: 'var(--bg-2)', overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${(value / max) * 100}%`, background: color, borderRadius: 4, transition: 'width 400ms ease' }} />
@@ -173,14 +166,14 @@ export function MagicAnalyticsPage({ cards }: { cards: MagicCardWithPrice[] }) {
           <CardLabel>Riepilogo finanziario</CardLabel>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
             {[
-              { label: 'Valore totale',     value: fmt(totalValue),   color: 'var(--ink-0)' },
-              { label: 'Costo totale',      value: fmt(totalCost),    color: 'var(--ink-0)' },
-              { label: 'P&L assoluto',      value: `${pl >= 0 ? '+' : '−'}${fmt(Math.abs(pl))}`, color: pl >= 0 ? '#2DD881' : '#FF5B47' },
+              { label: 'Valore totale',     value: fmtMoney(totalValue),   color: 'var(--ink-0)' },
+              { label: 'Costo totale',      value: fmtMoney(totalCost),    color: 'var(--ink-0)' },
+              { label: 'P&L assoluto',      value: `${pl >= 0 ? '+' : '−'}${fmtMoney(Math.abs(pl))}`, color: pl >= 0 ? '#2DD881' : '#FF5B47' },
               { label: 'P&L %',             value: totalCost > 0 ? `${pl >= 0 ? '+' : '−'}${Math.abs((pl / totalCost) * 100).toFixed(1)}%` : '—', color: pl >= 0 ? '#2DD881' : '#FF5B47' },
               { label: 'Carte totali',      value: String(cards.length), color: 'var(--ink-0)' },
               { label: 'Foil',              value: String(foilCount),  color: '#FFCB2E' },
               { label: 'Preferite',         value: String(cards.filter(c => c.is_favorite).length), color: '#7B7CF7' },
-              { label: 'Valore medio/carta',value: fmt(totalValue / cards.length), color: 'var(--ink-0)' },
+              { label: 'Valore medio/carta',value: fmtMoney(totalValue / cards.length), color: 'var(--ink-0)' },
             ].map(item => (
               <div key={item.label} style={{ background: 'var(--bg-2)', borderRadius: 12, padding: '12px 16px' }}>
                 <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>{item.label}</div>
@@ -198,7 +191,7 @@ export function MagicAnalyticsPage({ cards }: { cards: MagicCardWithPrice[] }) {
               <MagicManaIcon color={col} size={20} />
               <span style={{ flex: 1, fontSize: 13, color: 'var(--ink-1)', fontWeight: 500 }}>{COLOR_NAMES[col]}</span>
               <span style={{ fontSize: 12, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>{d.count}c</span>
-              <span style={{ fontSize: 12, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)', width: 70, textAlign: 'right' }}>{fmt(d.value)}</span>
+              <span style={{ fontSize: 12, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)', width: 70, textAlign: 'right' }}>{fmtMoney(d.value)}</span>
             </div>
           ))}
           {byColor.colorlessCount > 0 && (
@@ -221,7 +214,7 @@ export function MagicAnalyticsPage({ cards }: { cards: MagicCardWithPrice[] }) {
                   <span style={{ fontSize: 13, color: 'var(--ink-1)', fontWeight: 500 }}>{RARITY_LABELS[r] ?? r}</span>
                 </div>
                 <span style={{ fontSize: 12, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>
-                  {d.count}c · {fmt(d.value)}
+                  {d.count}c · {fmtMoney(d.value)}
                 </span>
               </div>
               <div style={{ height: 4, borderRadius: 4, background: 'var(--bg-2)', overflow: 'hidden' }}>
@@ -240,7 +233,7 @@ export function MagicAnalyticsPage({ cards }: { cards: MagicCardWithPrice[] }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
                   <span style={{ color: 'var(--ink-1)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '55%' }}>{s.name}</span>
                   <span style={{ fontFamily: 'var(--font-mono)', color: s.pl >= 0 ? '#2DD881' : '#FF5B47', flexShrink: 0 }}>
-                    {s.pl >= 0 ? '+' : '−'}{fmt(Math.abs(s.pl))}
+                    {s.pl >= 0 ? '+' : '−'}{fmtMoney(Math.abs(s.pl))}
                   </span>
                 </div>
                 <div style={{ height: 4, borderRadius: 4, background: 'var(--bg-2)', overflow: 'hidden' }}>
@@ -288,7 +281,7 @@ export function MagicAnalyticsPage({ cards }: { cards: MagicCardWithPrice[] }) {
               <div key={item.label} style={{ flex: 1, background: 'var(--bg-2)', borderRadius: 12, padding: '14px 16px' }}>
                 <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>{item.label}</div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, color: item.color }}>{item.count}</div>
-                <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>{fmt(item.value)}</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>{fmtMoney(item.value)}</div>
               </div>
             ))}
           </div>
@@ -343,7 +336,7 @@ export function MagicAnalyticsPage({ cards }: { cards: MagicCardWithPrice[] }) {
                 <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{c.set_name}{c.foil ? ' · ✦' : ''}</div>
               </div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: 'var(--ink-0)', flexShrink: 0 }}>
-                {fmt(c.market_price ?? c.cost_basis)}
+                {fmtMoney(c.market_price ?? c.cost_basis)}
               </div>
             </div>
           ))}
@@ -359,7 +352,7 @@ export function MagicAnalyticsPage({ cards }: { cards: MagicCardWithPrice[] }) {
               value={d.count}
               max={maxType}
               color="linear-gradient(90deg, #7B7CF7, #4F46E5)"
-              sub={`${d.count}c · ${fmt(d.value)}`}
+              sub={`${d.count}c · ${fmtMoney(d.value)}`}
             />
           ))}
         </Card>

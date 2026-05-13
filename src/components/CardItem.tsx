@@ -4,11 +4,7 @@ import { Star } from 'lucide-react'
 import type { CollectionCardWithPrice } from '@/types'
 import { getElement } from '@/lib/elements'
 import { PokemonTypeIcon } from './ui/PokemonTypeIcon'
-
-function fmtMoney(v: number | null) {
-  if (v == null) return '—'
-  return '€' + Math.abs(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+import { fmtMoney } from '@/lib/fmt'
 
 function gradeColor(g: number): string {
   if (g >= 9.5) return '#2DD881'

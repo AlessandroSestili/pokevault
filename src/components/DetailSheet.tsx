@@ -7,17 +7,10 @@ import { getElement } from '@/lib/elements'
 import { PokemonTypeIcon } from './ui/PokemonTypeIcon'
 import { AreaChart } from './charts/AreaChart'
 import { deleteCardAction, editCardAction } from '@/lib/actions'
+import { fmtMoney, fmtPct } from '@/lib/fmt'
 
 const LANGUAGES: Language[] = ['EN', 'IT', 'JP', 'DE', 'FR', 'ES', 'PT', 'KO', 'ZH']
 const SOURCES: Source[] = ['Cardmarket', 'eBay', 'TCGPlayer', 'Negozio locale', 'Scambio', 'Asta', 'Altro']
-
-function fmtMoney(v: number | null) {
-  if (v == null) return '—'
-  return '€' + Math.abs(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-function fmtPct(v: number) {
-  return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1) + '%'
-}
 function fmtDate(iso: string) {
   const months = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic']
   const d = new Date(iso)

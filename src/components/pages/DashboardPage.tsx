@@ -4,20 +4,7 @@ import { useMemo } from 'react'
 import { ArrowRight, TrendingUp } from 'lucide-react'
 import type { CollectionCardWithPrice } from '@/types'
 import { CardItem } from '../CardItem'
-
-function fmtMoney(v: number) {
-  const n = Math.abs(v)
-  const s = n >= 1000
-    ? n.toLocaleString('it-IT', { maximumFractionDigits: 0 })
-    : n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return (v < 0 ? '−' : '') + '€' + s
-}
-function fmtPct(v: number) {
-  return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1) + '%'
-}
-function fmt2(v: number) {
-  return '€' + Math.abs(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+import { fmtMoney, fmtPct, computeTopSets } from '@/lib/fmt'
 
 
 export function DashboardPage({
@@ -58,16 +45,7 @@ export function DashboardPage({
     [cards]
   )
 
-  const topSets = useMemo(() => {
-    const map = new Map<string, { name: string; value: number; count: number }>()
-    for (const c of cards) {
-      if (!map.has(c.set_name)) map.set(c.set_name, { name: c.set_name, value: 0, count: 0 })
-      const g = map.get(c.set_name)!
-      g.value += c.market_price ?? 0
-      g.count += 1
-    }
-    return Array.from(map.values()).sort((a, b) => b.value - a.value).slice(0, 5)
-  }, [cards])
+  const topSets = useMemo(() => computeTopSets(cards), [cards])
 
   const recentCards = useMemo(() =>
     [...cards].sort((a, b) => new Date(b.acquired_date).getTime() - new Date(a.acquired_date).getTime()).slice(0, 8),
@@ -80,9 +58,9 @@ export function DashboardPage({
       <div style={{ display: 'flex', gap: 1, background: 'var(--line)', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
         {[
           { label: 'Carte',      value: cards.length.toString() },
-          { label: 'Valore',     value: fmt2(totals.value) },
-          { label: 'Costo',      value: fmt2(totals.cost) },
-          { label: 'P&L',        value: `${totals.pl >= 0 ? '+' : '−'}${fmt2(Math.abs(totals.pl))}`, color: totals.pl >= 0 ? '#2DD881' : '#FF5B47' },
+          { label: 'Valore',     value: fmtMoney(totals.value) },
+          { label: 'Costo',      value: fmtMoney(totals.cost) },
+          { label: 'P&L',        value: `${totals.pl >= 0 ? '+' : '−'}${fmtMoney(Math.abs(totals.pl))}`, color: totals.pl >= 0 ? '#2DD881' : '#FF5B47' },
           { label: 'Var. 30g',   value: fmtPct(totals.dayPl), color: totals.dayPl >= 0 ? '#2DD881' : '#FF5B47',
             icon: <TrendingUp size={11} style={{ color: totals.dayPl >= 0 ? '#2DD881' : '#FF5B47' }} /> },
         ].map(item => (
@@ -126,7 +104,7 @@ export function DashboardPage({
                           {s.name}
                         </span>
                         <span style={{ color: 'var(--ink-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                          {fmt2(s.value)} · {s.count}c
+                          {fmtMoney(s.value)} · {s.count}c
                         </span>
                       </div>
                       <div style={{ height: 4, borderRadius: 4, background: 'var(--bg-2)', overflow: 'hidden' }}>

@@ -4,17 +4,7 @@ import { useMemo } from 'react'
 import { ArrowRight } from 'lucide-react'
 import type { MagicCardWithPrice } from '@/types'
 import { MagicCardItem } from './MagicCardItem'
-
-function fmt(v: number) {
-  const n = Math.abs(v)
-  const s = n >= 1000
-    ? n.toLocaleString('it-IT', { maximumFractionDigits: 0 })
-    : n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return (v < 0 ? '−' : '') + '€' + s
-}
-function fmt2(v: number) {
-  return '€' + Math.abs(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+import { fmtMoney, computeTopSets } from '@/lib/fmt'
 
 const RARITY_COLOR: Record<string, string> = {
   mythic:   '#FF8C00',
@@ -57,18 +47,7 @@ export function MagicDashboardPage({
     [cards]
   )
 
-  // Top sets by value
-  const topSets = useMemo(() => {
-    const map = new Map<string, { name: string; value: number; count: number; set_id: string }>()
-    for (const c of cards) {
-      const key = c.set_name
-      if (!map.has(key)) map.set(key, { name: c.set_name, value: 0, count: 0, set_id: c.set_id })
-      const g = map.get(key)!
-      g.value += c.market_price ?? c.cost_basis
-      g.count += 1
-    }
-    return Array.from(map.values()).sort((a, b) => b.value - a.value).slice(0, 5)
-  }, [cards])
+  const topSets = useMemo(() => computeTopSets(cards), [cards])
 
   // Rarity breakdown
   const rarityBreakdown = useMemo(() => {
@@ -90,9 +69,9 @@ export function MagicDashboardPage({
       <div style={{ display: 'flex', gap: 1, background: 'var(--line)', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
         {[
           { label: 'Carte',  value: cards.length.toString() },
-          { label: 'Valore', value: fmt2(totals.value) },
-          { label: 'Costo',  value: fmt2(totals.cost) },
-          { label: 'P&L',    value: `${totals.pl >= 0 ? '+' : '−'}${fmt2(Math.abs(totals.pl))}`, color: totals.pl >= 0 ? '#2DD881' : '#FF5B47' },
+          { label: 'Valore', value: fmtMoney(totals.value) },
+          { label: 'Costo',  value: fmtMoney(totals.cost) },
+          { label: 'P&L',    value: `${totals.pl >= 0 ? '+' : '−'}${fmtMoney(Math.abs(totals.pl))}`, color: totals.pl >= 0 ? '#2DD881' : '#FF5B47' },
           { label: 'Foil',   value: totals.foilCount.toString() },
         ].map(item => (
           <div key={item.label} style={{ flex: 1, padding: '12px 20px', background: 'var(--bg-0)' }}>
@@ -121,7 +100,7 @@ export function MagicDashboardPage({
               Valore totale collezione
             </div>
             <div style={{ fontFamily: 'var(--font-space)', fontSize: 42, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1, color: 'var(--ink-0)', marginBottom: 20 }}>
-              {fmt(totals.value)}
+              {fmtMoney(totals.value)}
             </div>
 
             {topSets.length === 0 ? (
@@ -132,13 +111,13 @@ export function MagicDashboardPage({
                   Top set per valore
                 </div>
                 {topSets.map(s => (
-                  <div key={s.set_id}>
+                  <div key={s.name}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
                       <span style={{ color: 'var(--ink-1)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>
                         {s.name}
                       </span>
                       <span style={{ color: 'var(--ink-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-                        {fmt2(s.value)} · {s.count}c
+                        {fmtMoney(s.value)} · {s.count}c
                       </span>
                     </div>
                     <div style={{ height: 4, borderRadius: 4, background: 'var(--bg-2)', overflow: 'hidden' }}>
@@ -181,7 +160,7 @@ export function MagicDashboardPage({
                       <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{count} carte</div>
                     </div>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--ink-0)', flexShrink: 0 }}>
-                      {fmt2(value)}
+                      {fmtMoney(value)}
                     </div>
                   </div>
                 ))}
@@ -201,11 +180,11 @@ export function MagicDashboardPage({
             {
               label: 'Carta più preziosa',
               value: mostValuable?.name ?? '—',
-              sub: mostValuable ? fmt(mostValuable.market_price ?? mostValuable.cost_basis) : '',
+              sub: mostValuable ? fmtMoney(mostValuable.market_price ?? mostValuable.cost_basis) : '',
             },
             {
               label: 'P&L',
-              value: `${totals.pl >= 0 ? '+' : '−'}${fmt2(Math.abs(totals.pl))}`,
+              value: `${totals.pl >= 0 ? '+' : '−'}${fmtMoney(Math.abs(totals.pl))}`,
               sub: totals.cost > 0 ? `${((totals.pl / totals.cost) * 100).toFixed(1)}% sul costo` : '',
               valueColor: totals.pl >= 0 ? '#2DD881' : '#FF5B47',
             },

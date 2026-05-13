@@ -3,19 +3,9 @@
 import { useMemo, useState } from 'react'
 import type { CollectionCardWithPrice } from '@/types'
 import { AreaChart } from '../charts/AreaChart'
+import { fmtMoney, fmtPct } from '@/lib/fmt'
 
 type Range = '30g' | '90g' | '1a' | 'tutto'
-
-function fmt(v: number) {
-  const n = Math.abs(v)
-  const s = n >= 1000
-    ? n.toLocaleString('it-IT', { maximumFractionDigits: 0 })
-    : n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return (v < 0 ? '−' : '') + '€' + s
-}
-function fmtPct(v: number) {
-  return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1) + '%'
-}
 
 function buildTimeSeries(cards: CollectionCardWithPrice[], n: number): number[] {
   const dayValues = new Array(n).fill(0)
@@ -64,7 +54,7 @@ function HBar({ label, value, max, color, sub }: { label: string; value: number;
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
         <span style={{ color: 'var(--ink-1)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '55%' }}>{label}</span>
-        <span style={{ color: 'var(--ink-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{sub ?? fmt(value)}</span>
+        <span style={{ color: 'var(--ink-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{sub ?? fmtMoney(value)}</span>
       </div>
       <div style={{ height: 4, borderRadius: 4, background: 'var(--bg-2)', overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${(value / max) * 100}%`, background: color, borderRadius: 4, transition: 'width 400ms ease' }} />
@@ -222,7 +212,7 @@ export function AnalyticsPage({ cards }: { cards: CollectionCardWithPrice[] }) {
             <div>
               <CardLabel>Andamento valore portfolio</CardLabel>
               <div style={{ fontFamily: 'var(--font-space)', fontSize: 36, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1, color: 'var(--ink-0)' }}>
-                {fmt(totalValue)}
+                {fmtMoney(totalValue)}
               </div>
               <div style={{ marginTop: 6, fontSize: 12, color: chartChange >= 0 ? '#2DD881' : '#FF5B47', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
                 {fmtPct(chartChange)} nel periodo selezionato
@@ -243,8 +233,8 @@ export function AnalyticsPage({ cards }: { cards: CollectionCardWithPrice[] }) {
           </div>
           <AreaChart values={chartValues} color="#FFCB2E" height={160} />
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>
-            <span>Min {fmt(Math.min(...chartValues))}</span>
-            <span>Max {fmt(Math.max(...chartValues))}</span>
+            <span>Min {fmtMoney(Math.min(...chartValues))}</span>
+            <span>Max {fmtMoney(Math.max(...chartValues))}</span>
           </div>
         </Card>
 
@@ -291,7 +281,7 @@ export function AnalyticsPage({ cards }: { cards: CollectionCardWithPrice[] }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
                   <span style={{ color: 'var(--ink-1)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '55%' }}>{s.name}</span>
                   <span style={{ fontFamily: 'var(--font-mono)', color: s.pl >= 0 ? '#2DD881' : '#FF5B47', flexShrink: 0 }}>
-                    {s.pl >= 0 ? '+' : '−'}{fmt(Math.abs(s.pl))}
+                    {s.pl >= 0 ? '+' : '−'}{fmtMoney(Math.abs(s.pl))}
                   </span>
                 </div>
                 <div style={{ height: 4, borderRadius: 4, background: 'var(--bg-2)', overflow: 'hidden' }}>
@@ -317,7 +307,7 @@ export function AnalyticsPage({ cards }: { cards: CollectionCardWithPrice[] }) {
               count={d.count}
               total={cards.length}
               color={ELEMENT_COLORS[el] ?? '#7B7CF7'}
-              value={fmt(d.value)}
+              value={fmtMoney(d.value)}
             />
           ))}
         </Card>
@@ -332,7 +322,7 @@ export function AnalyticsPage({ cards }: { cards: CollectionCardWithPrice[] }) {
               count={d.count}
               total={cards.length}
               color={RARITY_COLORS[i % RARITY_COLORS.length]}
-              value={fmt(d.value)}
+              value={fmtMoney(d.value)}
             />
           ))}
         </Card>
@@ -390,14 +380,14 @@ export function AnalyticsPage({ cards }: { cards: CollectionCardWithPrice[] }) {
           <CardLabel>Riepilogo finanziario</CardLabel>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
             {[
-              { label: 'Valore totale', value: fmt(totalValue), color: 'var(--ink-0)' },
-              { label: 'Costo totale', value: fmt(totalCost), color: 'var(--ink-0)' },
-              { label: 'P&L assoluto', value: `${totalValue - totalCost >= 0 ? '+' : '−'}${fmt(Math.abs(totalValue - totalCost))}`, color: totalValue - totalCost >= 0 ? '#2DD881' : '#FF5B47' },
+              { label: 'Valore totale', value: fmtMoney(totalValue), color: 'var(--ink-0)' },
+              { label: 'Costo totale', value: fmtMoney(totalCost), color: 'var(--ink-0)' },
+              { label: 'P&L assoluto', value: `${totalValue - totalCost >= 0 ? '+' : '−'}${fmtMoney(Math.abs(totalValue - totalCost))}`, color: totalValue - totalCost >= 0 ? '#2DD881' : '#FF5B47' },
               { label: 'P&L %', value: totalCost > 0 ? fmtPct(((totalValue - totalCost) / totalCost) * 100) : '—', color: totalValue - totalCost >= 0 ? '#2DD881' : '#FF5B47' },
               { label: 'Carte totali', value: String(cards.length), color: 'var(--ink-0)' },
               { label: 'Con storico prezzi', value: String(cards.filter(c => c.price_history.length > 0).length), color: 'var(--ink-0)' },
               { label: 'Preferite', value: String(cards.filter(c => c.is_favorite).length), color: '#FFCB2E' },
-              { label: 'Valore medio/carta', value: fmt(totalValue / cards.length), color: 'var(--ink-0)' },
+              { label: 'Valore medio/carta', value: fmtMoney(totalValue / cards.length), color: 'var(--ink-0)' },
             ].map(item => (
               <div key={item.label} style={{ background: 'var(--bg-2)', borderRadius: 12, padding: '12px 16px' }}>
                 <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>{item.label}</div>
