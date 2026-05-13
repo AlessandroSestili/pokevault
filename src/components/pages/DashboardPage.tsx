@@ -84,6 +84,17 @@ export function DashboardPage({
     [cards]
   )
 
+  const topSets = useMemo(() => {
+    const map = new Map<string, { name: string; value: number; count: number }>()
+    for (const c of cards) {
+      if (!map.has(c.set_name)) map.set(c.set_name, { name: c.set_name, value: 0, count: 0 })
+      const g = map.get(c.set_name)!
+      g.value += c.market_price ?? 0
+      g.count += 1
+    }
+    return Array.from(map.values()).sort((a, b) => b.value - a.value).slice(0, 5)
+  }, [cards])
+
   const recentCards = useMemo(() =>
     [...cards].sort((a, b) => new Date(b.acquired_date).getTime() - new Date(a.acquired_date).getTime()).slice(0, 8),
     [cards]
@@ -165,6 +176,44 @@ export function DashboardPage({
             <span>Max {fmtMoney(Math.max(...chartValues))}</span>
           </div>
         </div>
+
+        {/* Top sets */}
+        {topSets.length > 0 && (() => {
+          const maxVal = topSets[0].value
+          return (
+            <div style={{
+              background: 'var(--bg-1)', border: '1px solid var(--line)',
+              borderRadius: 18, padding: '22px 24px', marginBottom: 28,
+            }}>
+              <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 600, marginBottom: 16 }}>
+                Top set per valore
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {topSets.map(s => (
+                  <div key={s.name}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
+                      <span style={{ color: 'var(--ink-1)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>
+                        {s.name}
+                      </span>
+                      <span style={{ color: 'var(--ink-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
+                        {fmt2(s.value)} · {s.count}c
+                      </span>
+                    </div>
+                    <div style={{ height: 4, borderRadius: 4, background: 'var(--bg-2)', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${(s.value / maxVal) * 100}%`,
+                        background: 'linear-gradient(90deg, #FFCB2E, #FF9500)',
+                        borderRadius: 4,
+                        transition: 'width 400ms ease',
+                      }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Stat cards row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 28 }}>
