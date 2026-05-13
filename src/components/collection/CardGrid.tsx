@@ -1,8 +1,11 @@
 'use client'
 
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import type { CollectionCardWithPrice } from '@/types'
 import { formatEur, formatPct, formatCondition } from '@/lib/formats'
+
+const PAGE_SIZE = 80
 
 function PlBadge({ pl, pct }: { pl: number; pct: number }) {
   const pos = pl >= 0
@@ -102,6 +105,26 @@ export function CardGrid({
   cards: CollectionCardWithPrice[]
   onCardClick: (id: string) => void
 }) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { setVisibleCount(PAGE_SIZE) }, [cards])
+
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount(prev => Math.min(prev + PAGE_SIZE, cards.length))
+        }
+      },
+      { rootMargin: '300px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [cards.length, visibleCount])
+
   if (cards.length === 0) {
     return (
       <div
@@ -115,10 +138,13 @@ export function CardGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-      {cards.map((card) => (
-        <CardItem key={card.id} card={card} onClick={() => onCardClick(card.id)} />
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        {cards.slice(0, visibleCount).map((card) => (
+          <CardItem key={card.id} card={card} onClick={() => onCardClick(card.id)} />
+        ))}
+      </div>
+      <div ref={sentinelRef} style={{ height: 1 }} />
+    </>
   )
 }
