@@ -1,8 +1,20 @@
 'use client'
 
 import { useState, useEffect, useMemo, useTransition } from 'react'
-import { Plus, Search, Star, Grid3X3, List, SlidersHorizontal } from 'lucide-react'
+import { Plus, Search, Star, Grid3X3, List, SlidersHorizontal, Layers, ChevronLeft } from 'lucide-react'
 import type { MagicCardWithPrice, MagicColor } from '@/types'
+
+type ViewMode = 'cards' | 'sets'
+
+interface MagicSetGroup {
+  set_id: string
+  set_name: string
+  cards: MagicCardWithPrice[]
+  imageUrl: string | null
+  totalValue: number
+  totalCost: number
+  colors: Set<MagicColor>
+}
 import { MagicCardItem } from './MagicCardItem'
 import { MagicDetailSheet } from './MagicDetailSheet'
 import { AddMagicCardModal } from '@/components/modals/AddMagicCardModal'
@@ -64,11 +76,42 @@ export function MagicCollectionShell({
   const [addOpen, setAddOpen] = useState(false)
   const [selectedCard, setSelectedCard] = useState<MagicCardWithPrice | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>('cards')
+  const [drillSet, setDrillSet] = useState<string | null>(null)
   const [, startTransition] = useTransition()
 
+  const setGroups = useMemo<MagicSetGroup[]>(() => {
+    const map = new Map<string, MagicSetGroup>()
+    for (const card of cards) {
+      const key = card.set_name
+      if (!map.has(key)) {
+        map.set(key, {
+          set_id: card.set_id,
+          set_name: card.set_name,
+          cards: [],
+          imageUrl: card.image_url,
+          totalValue: 0,
+          totalCost: 0,
+          colors: new Set(),
+        })
+      }
+      const g = map.get(key)!
+      g.cards.push(card)
+      g.totalValue += card.market_price ?? card.cost_basis
+      g.totalCost += card.cost_basis
+      if (!g.imageUrl && card.image_url) g.imageUrl = card.image_url
+      for (const c of (card.colors ?? [])) g.colors.add(c)
+    }
+    return Array.from(map.values()).sort((a, b) => b.totalValue - a.totalValue)
+  }, [cards])
+
   const filtered = useMemo(
-    () => sortCards(filterCards(cards, search, colorFilter, foilOnly, favoritesOnly), sort),
-    [cards, search, colorFilter, foilOnly, favoritesOnly, sort]
+    () => {
+      let base = cards
+      if (drillSet) base = base.filter(c => c.set_name === drillSet)
+      return sortCards(filterCards(base, search, colorFilter, foilOnly, favoritesOnly), sort)
+    },
+    [cards, search, colorFilter, foilOnly, favoritesOnly, sort, drillSet]
   )
 
   const totalValue = cards.reduce((acc, c) => acc + (c.market_price ?? c.cost_basis), 0)
@@ -124,90 +167,157 @@ export function MagicCollectionShell({
           display: 'flex', alignItems: 'center', gap: 10, padding: '12px 24px',
           borderBottom: '1px solid var(--line)', flexShrink: 0, flexWrap: 'wrap',
         }}>
-          {/* Color filters */}
-          <div style={{ display: 'flex', gap: 5 }}>
+          {/* Back from drill-down */}
+          {viewMode === 'cards' && drillSet && (
             <button
-              onClick={() => setColorFilter(null)}
+              onClick={() => { setDrillSet(null); setViewMode('sets') }}
               style={{
-                width: 26, height: 26, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                background: colorFilter === null ? 'var(--accent)' : 'var(--bg-2)',
-                fontSize: 9, fontWeight: 700, color: colorFilter === null ? '#000' : 'var(--ink-3)',
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                border: 'none', cursor: 'pointer',
+                background: 'var(--bg-2)', color: 'var(--ink-2)',
               }}
-              title="Tutti"
             >
-              ALL
+              <ChevronLeft size={13} /> Set
             </button>
-            {COLORS.map(c => (
-              <button
-                key={c}
-                onClick={() => setColorFilter(colorFilter === c ? null : c)}
-                title={{ W: 'Bianco', U: 'Blu', B: 'Nero', R: 'Rosso', G: 'Verde' }[c]}
-                style={{
-                  width: 26, height: 26, borderRadius: '50%', border: `1.5px solid ${colorFilter === c ? '#7B7CF7' : 'transparent'}`,
-                  cursor: 'pointer', background: 'transparent', padding: 0,
-                  opacity: colorFilter && colorFilter !== c ? 0.35 : 1,
-                  boxShadow: colorFilter === c ? '0 0 0 3px rgba(123,124,247,0.3)' : 'none',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'opacity 140ms, box-shadow 140ms',
-                }}
-              >
-                <MagicManaIcon color={c} size={22} />
-              </button>
-            ))}
-          </div>
+          )}
 
-          <div style={{ width: 1, height: 20, background: 'var(--line)' }} />
+          {/* Color filters — hidden in sets view */}
+          {viewMode === 'cards' && (
+            <div style={{ display: 'flex', gap: 5 }}>
+              <button
+                onClick={() => setColorFilter(null)}
+                style={{
+                  width: 26, height: 26, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                  background: colorFilter === null ? 'var(--accent)' : 'var(--bg-2)',
+                  fontSize: 9, fontWeight: 700, color: colorFilter === null ? '#000' : 'var(--ink-3)',
+                }}
+                title="Tutti"
+              >
+                ALL
+              </button>
+              {COLORS.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setColorFilter(colorFilter === c ? null : c)}
+                  title={{ W: 'Bianco', U: 'Blu', B: 'Nero', R: 'Rosso', G: 'Verde' }[c]}
+                  style={{
+                    width: 26, height: 26, borderRadius: '50%', border: `1.5px solid ${colorFilter === c ? '#7B7CF7' : 'transparent'}`,
+                    cursor: 'pointer', background: 'transparent', padding: 0,
+                    opacity: colorFilter && colorFilter !== c ? 0.35 : 1,
+                    boxShadow: colorFilter === c ? '0 0 0 3px rgba(123,124,247,0.3)' : 'none',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'opacity 140ms, box-shadow 140ms',
+                  }}
+                >
+                  <MagicManaIcon color={c} size={22} />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {viewMode === 'cards' && <div style={{ width: 1, height: 20, background: 'var(--line)' }} />}
 
           {/* Foil toggle */}
-          <button
-            onClick={() => setFoilOnly(b => !b)}
-            style={{
-              padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
-              background: foilOnly ? 'linear-gradient(135deg, rgba(255,203,46,0.2), rgba(176,123,255,0.2))' : 'var(--bg-2)',
-              color: foilOnly ? '#FFCB2E' : 'var(--ink-3)',
-            }}
-          >
-            ✦ Foil
-          </button>
+          {viewMode === 'cards' && (
+            <button
+              onClick={() => setFoilOnly(b => !b)}
+              style={{
+                padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
+                background: foilOnly ? 'linear-gradient(135deg, rgba(255,203,46,0.2), rgba(176,123,255,0.2))' : 'var(--bg-2)',
+                color: foilOnly ? '#FFCB2E' : 'var(--ink-3)',
+              }}
+            >
+              ✦ Foil
+            </button>
+          )}
 
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
-            {/* Sort pills */}
-            {(Object.keys(SORT_LABELS) as SortKey[]).map(k => (
-              <button
-                key={k}
-                onClick={() => setSort(k)}
-                style={{
-                  padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 500, border: 'none', cursor: 'pointer',
-                  background: sort === k ? 'rgba(123,124,247,0.18)' : 'var(--bg-2)',
-                  color: sort === k ? '#7B7CF7' : 'var(--ink-3)',
-                }}
-              >
-                {SORT_LABELS[k]}
-              </button>
-            ))}
-          </div>
+          {viewMode === 'cards' && (
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+              {/* Sort pills */}
+              {(Object.keys(SORT_LABELS) as SortKey[]).map(k => (
+                <button
+                  key={k}
+                  onClick={() => setSort(k)}
+                  style={{
+                    padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 500, border: 'none', cursor: 'pointer',
+                    background: sort === k ? 'rgba(123,124,247,0.18)' : 'var(--bg-2)',
+                    color: sort === k ? '#7B7CF7' : 'var(--ink-3)',
+                  }}
+                >
+                  {SORT_LABELS[k]}
+                </button>
+              ))}
+            </div>
+          )}
 
-          <span style={{ fontSize: 11, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>
-            {filtered.length} carte
+          <span style={{ fontSize: 11, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums', marginLeft: viewMode === 'sets' ? 'auto' : undefined }}>
+            {viewMode === 'sets' ? `${setGroups.length} set` : `${filtered.length} carte`}
           </span>
 
+          {/* View toggle */}
+          <div style={{ display: 'flex', gap: 2, background: 'var(--bg-2)', borderRadius: 8, padding: 2 }}>
+            <button
+              onClick={() => { setViewMode('cards'); setDrillSet(null) }}
+              title="Vista carte"
+              style={{
+                width: 26, height: 26, borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: viewMode === 'cards' ? 'var(--bg-1)' : 'transparent',
+                color: viewMode === 'cards' ? 'var(--ink-0)' : 'var(--ink-3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: viewMode === 'cards' ? '0 1px 3px rgba(0,0,0,.2)' : 'none',
+              }}
+            >
+              <Grid3X3 size={13} />
+            </button>
+            <button
+              onClick={() => { setViewMode('sets'); setDrillSet(null) }}
+              title="Vista set"
+              style={{
+                width: 26, height: 26, borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: viewMode === 'sets' ? 'var(--bg-1)' : 'transparent',
+                color: viewMode === 'sets' ? 'var(--ink-0)' : 'var(--ink-3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: viewMode === 'sets' ? '0 1px 3px rgba(0,0,0,.2)' : 'none',
+              }}
+            >
+              <Layers size={13} />
+            </button>
+          </div>
+
           {/* Add button */}
-          <button
-            onClick={() => setAddOpen(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '6px 14px', borderRadius: 10, border: 'none', cursor: 'pointer',
-              background: 'linear-gradient(135deg, #7B7CF7, #4F46E5)',
-              color: '#fff', fontSize: 13, fontWeight: 600,
-            }}
-          >
-            <Plus size={14} /> Aggiungi
-          </button>
+          {viewMode === 'cards' && (
+            <button
+              onClick={() => setAddOpen(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '6px 14px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                background: 'linear-gradient(135deg, #7B7CF7, #4F46E5)',
+                color: '#fff', fontSize: 13, fontWeight: 600,
+              }}
+            >
+              <Plus size={14} /> Aggiungi
+            </button>
+          )}
         </div>
 
         {/* Grid */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
-          {filtered.length === 0 ? (
+          {viewMode === 'sets' ? (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+              gap: 16,
+            }}>
+              {setGroups.map(g => (
+                <MagicSetCard
+                  key={g.set_name}
+                  group={g}
+                  onClick={() => { setDrillSet(g.set_name); setViewMode('cards') }}
+                />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
             <EmptyState onAdd={() => setAddOpen(true)} />
           ) : (
             <div style={{
@@ -237,6 +347,98 @@ export function MagicCollectionShell({
 
       <AddMagicCardModal open={addOpen} onClose={() => setAddOpen(false)} />
     </>
+  )
+}
+
+function MagicSetCard({ group, onClick }: { group: MagicSetGroup; onClick: () => void }) {
+  const pl = group.totalValue - group.totalCost
+  const iconUrl = `https://svgs.scryfall.io/sets/${group.set_id}.svg`
+
+  function fmt(v: number) {
+    return '€' + Math.abs(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: 'var(--bg-1)', borderRadius: 14, border: '1px solid var(--line)',
+        overflow: 'hidden', cursor: 'pointer',
+        transition: 'border-color 140ms, transform 140ms, box-shadow 140ms',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = '#7B7CF7'
+        e.currentTarget.style.transform = 'translateY(-2px)'
+        e.currentTarget.style.boxShadow = '0 8px 32px rgba(123,124,247,.25)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = 'var(--line)'
+        e.currentTarget.style.transform = 'translateY(0)'
+        e.currentTarget.style.boxShadow = 'none'
+      }}
+    >
+      {/* Set image area */}
+      <div style={{
+        height: 100, background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 16, position: 'relative', overflow: 'hidden',
+      }}>
+        {group.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={group.imageUrl}
+            alt=""
+            referrerPolicy="no-referrer"
+            style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%',
+              objectFit: 'cover', opacity: 0.15, filter: 'blur(3px)',
+            }}
+          />
+        )}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={iconUrl}
+          alt={group.set_name}
+          style={{ width: 56, height: 56, objectFit: 'contain', position: 'relative', zIndex: 1, filter: 'invert(1) opacity(0.9)' }}
+          onError={e => {
+            const el = e.target as HTMLImageElement
+            el.style.display = 'none'
+          }}
+        />
+      </div>
+
+      {/* Info */}
+      <div style={{ padding: '12px 14px 14px' }}>
+        <div style={{
+          fontWeight: 600, fontSize: 13, color: 'var(--ink-0)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2,
+        }}>
+          {group.set_name}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 8 }}>
+          {group.set_id.toUpperCase()} · {group.cards.length} {group.cards.length === 1 ? 'carta' : 'carte'}
+          {group.cards.some(c => c.foil) && ' · ✦'}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <div>
+            <div style={{ fontSize: 9, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 1 }}>Valore</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 700, color: 'var(--ink-0)' }}>
+              {fmt(group.totalValue)}
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 9, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 1 }}>P&amp;L</div>
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600,
+              color: pl >= 0 ? '#2DD881' : '#FF5B47',
+            }}>
+              {pl >= 0 ? '+' : '−'}{fmt(Math.abs(pl))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
