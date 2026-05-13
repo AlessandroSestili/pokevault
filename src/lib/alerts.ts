@@ -120,7 +120,7 @@ async function sendAlertDigest(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'TCG Vault <alerts@tcgvault.app>',
+        from: 'TCG Vault <onboarding@resend.dev>',
         to: [email],
         subject: `🔔 ${items.length} carta${items.length > 1 ? 'e' : ''} sopra soglia — TCG Vault`,
         html,
